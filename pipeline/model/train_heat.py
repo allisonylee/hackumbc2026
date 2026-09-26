@@ -129,5 +129,22 @@ def train():
     return model, results
 
 
+def main():
+    """Train under CodeCarbon (tuning + CV + final fit) and record the energy in results.json."""
+    from codecarbon import OfflineEmissionsTracker
+
+    tr = OfflineEmissionsTracker(project_name="heat_model_lgbm", country_iso_code="USA", region="maryland",
+                                 log_level="error", save_to_file=False)
+    tr.start()
+    try:
+        _, results = train()
+    finally:
+        tr.stop()
+    d = tr.final_emissions_data
+    results.update(trainKWh=d.energy_consumed, trainGCO2=d.emissions * 1000, trainWallSeconds=d.duration)
+    (MODEL_DIR / "results.json").write_text(json.dumps(results, indent=1))
+    print(f"training energy {d.energy_consumed * 1000:.3f} Wh, {d.emissions * 1000:.3f} g CO2, {d.duration:.0f} s")
+
+
 if __name__ == "__main__":
-    train()
+    main()
