@@ -3,7 +3,7 @@
 Source of truth for the files in `web/public/data/` and the chat API. Copied from `planning/implementation_plan.md` §3.
 **Change this file only on `main`**, and update the mock generator (`pipeline/mock/make_mock.py`) in the same commit.
 
-Until the real pipeline lands, `web/public/data/` holds mock data from `python -m pipeline.mock.make_mock` (2,000 hexes, 3,000 sites; real neighborhood, HOLC and city polygons, real live trees and cooling centers inside the mock area, synthetic per-hex values; `stats.json` has `mock: true`).
+Until the real pipeline lands, `web/public/data/` holds mock data from `python -m pipeline.mock.make_mock`. It covers the **whole city**: every H3 cell whose center is inside a neighborhood polygon, plus edge cells that hold an inventory site (~14.3k hexes), and **every real vacant planting site** (`Vacant Site` + `Vacant Potential`, ~66k). Polygons, sites, live trees and cooling centers are real; per-hex values (canopy, heat, gains, SHAP, social) are synthetic, and `pop` spreads each neighborhood's real 2020 population over its hexes. `stats.json` has `mock: true`.
 
 Keep keys short but readable. Round coordinates to 5 decimals and floats to 3.
 

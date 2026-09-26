@@ -1,9 +1,11 @@
 """Write mock web/public/data/*.json that matches CONTRACTS.md, so the frontend can start
-before the real pipeline lands. Values are synthetic but spatially plausible.
+before the real pipeline lands. Covers the whole city: every H3 cell inside the neighborhood
+polygons, and every real vacant planting site from the Forestry inventory. Per-hex values are synthetic
+but spatially plausible; population comes from each neighborhood's real 2020 count.
 
 Run: python -m pipeline.mock.make_mock
 Needs h3, numpy and shapely, plus the raw neighborhoods/HOLC/trees/cooling-center files
-(polygons, trees and cooling centers are real; per-hex values are synthetic).
+(polygons, planting sites, live trees and cooling centers are real; per-hex values are synthetic).
 """
 import json
 import math
@@ -19,7 +21,6 @@ from pipeline.site_rules import crown_units, rescale_surv, size_class, surv_base
 rng = np.random.default_rng(42)
 DOWNTOWN = (39.2904, -76.6122)
 HARBOR = (39.2856, -76.6081)
-N_SITES = 3000
 
 
 def r(x, n=3):
@@ -87,9 +88,24 @@ def main():
             for c in cells_of(f["geometry"]):
                 cell_holc[c] = g
 
-    # --- ~2,000 contiguous hexes around downtown, clipped to the city ---
-    center = h3.latlng_to_cell(*DOWNTOWN, H3_RES)
-    cells = [c for c in h3.grid_disk(center, 28) if c in cell_nb][:2000]
+    # --- every hex whose center falls inside a neighborhood polygon (the whole city) ---
+    # Plus edge hexes whose center is just outside the polygons but that hold a real planting site, so no
+    # inventory site is lost at the city boundary. Their neighborhood is the most common one next door.
+    vac = json.load(open(RAW / "trees" / "vacant_sites.geojson"))
+    for f in vac["features"]:
+        g = f["geometry"]
+        if not g or f["properties"].get("SPP") not in ("Vacant Site", "Vacant Potential"):
+            continue
+        c = h3.latlng_to_cell(round(g["coordinates"][1], 5), round(g["coordinates"][0], 5), H3_RES)
+        if c not in cell_nb:
+            near = [cell_nb[n] for n in h3.grid_disk(c, 2) if n in cell_nb]
+            if near:
+                cell_nb[c] = max(set(near), key=near.count)
+    cells = sorted(cell_nb)
+    nb_cell_count = {}
+    for c in cells:
+        nb_cell_count[cell_nb[c]] = nb_cell_count.get(cell_nb[c], 0) + 1
+    nb_pop = {f["properties"]["Name"]: float(f["properties"].get("Population") or 0) for f in nb_raw["features"]}
 
     rows = []
     for c in cells:
@@ -110,7 +126,9 @@ def main():
         rows.append(dict(
             h3=c, nb=cell_nb[c], lat=lat, lng=lng, canopy=canopy, imperv=imperv, bldg=bldg, road=road,
             heat=heat, heatPred=heat_pred, income=income, poverty=poverty, poc=poc,
-            asthma=asthma, svi=svi, holc=cell_holc.get(c), pop=float(max(0, rng.normal(90, 45))),
+            asthma=asthma, svi=svi, holc=cell_holc.get(c),
+            # neighborhood's real population spread over its hexes, with some block-to-block variation
+            pop=float(nb_pop.get(cell_nb[c], 0) / nb_cell_count[cell_nb[c]] * rng.uniform(0.6, 1.4)),
             flood=bool(km((lat, lng), HARBOR) < 1.2 and rng.random() < 0.2),
         ))
 
@@ -136,25 +154,24 @@ def main():
         x["expo"] = float((n_bus[i] + (x["h3"] in school_near) + (x["h3"] in cool_near)) / 3)
         x["people"] = x["pop"] + EXPO_W * x["expo"] * p90
 
-    # --- sites: random points inside the hexes, then sort by crown × surv / cost per hex ---
+    # --- sites: the real vacant planting sites from the Forestry inventory ---
     cell_set = set(cells)
     sites_by_hex = {c: [] for c in cells}
-    oid = 100000
-    spaces = ["Tree Lawn", "Well/Pit", "Potential Well/Pit", "Median/Island", "Open/Unrestricted"]
-    while sum(len(v) for v in sites_by_hex.values()) < N_SITES:
-        c = cells[int(rng.integers(len(cells)))]
-        lat, lng = h3.cell_to_latlng(c)
-        lat, lng = round(lat + rng.normal(0, 0.00025), 5), round(lng + rng.normal(0, 0.00032), 5)
-        c2 = h3.latlng_to_cell(lat, lng, H3_RES)
-        if c2 not in cell_set:
+    for f in vac["features"]:
+        pr, g = f["properties"], f["geometry"]
+        if pr.get("SPP") not in ("Vacant Site", "Vacant Potential") or not g:
             continue
-        typ = "potential" if rng.random() < 0.32 else "pit"
-        space = "Potential Well/Pit" if typ == "potential" else str(rng.choice(spaces[:2] + spaces[3:], p=[0.8, 0.14, 0.05, 0.01]))
-        width = None if rng.random() < 0.05 else (0 if typ == "potential" else int(rng.choice([3, 4, 5, 6, 8, 10, 20])))
-        oid += 1
-        sites_by_hex[c2].append(dict(
-            id=str(oid), lng=lng, lat=lat, h3=c2, type=typ, cost=COST[typ],
-            util=bool(rng.random() < 0.1), width=width, space=space, nb=cell_nb[c2], species="",
+        lng, lat = round(g["coordinates"][0], 5), round(g["coordinates"][1], 5)
+        c = h3.latlng_to_cell(lat, lng, H3_RES)
+        if c not in cell_set:
+            continue
+        typ = "potential" if pr["SPP"] == "Vacant Potential" else "pit"
+        w = pr.get("SPACEWIDTH")
+        width = None if w in (None, "") else (20 if str(w).startswith(">") else int(float(w)))
+        sites_by_hex[c].append(dict(
+            id=str(pr["OBJECTID"]), lng=lng, lat=lat, h3=c, type=typ, cost=COST[typ],
+            util=(pr.get("UTILITIES") or "None") != "None", width=width, space=pr.get("SPACE_TYPE"),
+            nb=cell_nb[c], species="",
         ))
 
     species = mock_species()
@@ -250,7 +267,7 @@ def main():
     city = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"name": "Baltimore"}, "geometry": simplify(mapping(city_geom))}]}
 
-    # live trees (real), limited to the mock hex area so the mock stays small
+    # live trees (real), everywhere inside the city hexes
     trees_raw = json.load(open(RAW / "trees" / "trees_all_other.geojson"))
     trees = []
     for f in trees_raw["features"]:
