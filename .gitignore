@@ -11,3 +11,4 @@ emissions.csv
 .claude/settings.local.json
 *.tsbuildinfo
 /handoffs
+.claude/worktrees/

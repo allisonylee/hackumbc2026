@@ -74,6 +74,15 @@ Don't wait to be asked. Write it while there's still room in the context to do i
 
 Also include the branch/worktree and the last commit hash, and note any uncommitted changes.
 
+## Frontend layout (`web/src/`)
+- `store.ts`: the one zustand store (data, tab, map toggles, hover/selection, per-tab slices, chat, dialogs, camera `flyTo`/`fitBounds`).
+- `lib/`: `types.ts` (TypeScript mirror of CONTRACTS.md), `data.ts` (loader + indexes; `loadTrees()` and `loadOptional()` are lazy), `colors.ts`, `format.ts`, `views.ts`, `maplibre.ts`.
+- `map/`: `MapCanvas.tsx` (one persistent map behind every tab), `useLayers.ts` (base layers + the active tab's layers), `baseLayers.ts` (city mask), `types.ts` (`TabLayers`, `before()` for label ordering).
+- `components/`: shared UI (`Panel`, `StatTile`, `AnimatedNumber`, `Legend`, `LoadingScreen`, `NavBar`) and shadcn in `components/ui/`.
+- `tabs/current|plan|learn/`: each tab's `layers.ts` (`use<Tab>Layers(active)`) and panel component. The optimizer lives in `tabs/plan/` (`optimizer.ts`, worker, `optimizerClient.ts`).
+- `features/chat`, `features/footprint`: global chat drawer and dialogs, rendered once by `App.tsx`.
+- Data-derived numbers come from the data files or optimizer results, never hardcoded.
+
 ## Gotchas
 - MapLibre must be imported via `@/lib/maplibre` and passed as `<Map mapLib={maplibregl}>`. The default build's inline worker breaks under Vite's dev prebundling.
 - MapLibre is pinned to v5, the version deck.gl 9.x is known to work with. deck.gl's interleaved overlay threw errors on v6.
