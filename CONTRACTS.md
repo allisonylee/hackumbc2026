@@ -3,7 +3,7 @@
 Source of truth for the files in `web/public/data/` and the chat API. Copied from `planning/implementation_plan.md` §3.
 **Change this file only on `main`**, and update the mock generator (`pipeline/mock/make_mock.py`) in the same commit.
 
-Until the real pipeline lands, `web/public/data/` holds mock data from `python -m pipeline.mock.make_mock` (2,000 hexes, 3,000 sites; real neighborhood and HOLC polygons with synthetic values; `stats.json` has `mock: true`).
+Until the real pipeline lands, `web/public/data/` holds mock data from `python -m pipeline.mock.make_mock` (2,000 hexes, 3,000 sites; real neighborhood, HOLC and city polygons, real live trees and cooling centers inside the mock area, synthetic per-hex values; `stats.json` has `mock: true`).
 
 Keep keys short but readable. Round coordinates to 5 decimals and floats to 3.
 
@@ -59,10 +59,24 @@ Within each hex, sites are **sorted cheapest first**. The optimizer uses the k-t
 Properties:
 - `name`, `canopy`, `heat`, `income`, `pop`, `asthma`, `poverty`, `sites`, `tes` (optional), `rankHeat`, `rankCanopy`;
 - `bivHeat` and `bivIncome`: 0–8 bivariate class index, computed in Python;
-- `canopyGap` = max(0, 0.40 − canopy).
+- `canopyGap` = max(0, 0.40 − canopy);
+- `labelLng`, `labelLat`: label anchor, from shapely `representative_point()` (always inside the polygon), rounded to 5 decimals.
 
 ## `holc.geojson`
 60 Baltimore polygons, property `grade`.
+
+## `city.geojson`
+FeatureCollection with **1** feature: the city boundary (dissolved neighborhoods), simplified like `neighborhoods.geojson`. Properties: `name: "Baltimore"`. Used for the outside-city mask.
+
+## `trees.json`: live trees (~110k), loaded lazily at zoom ≥ 15
+Compact tuples to keep size down (not objects):
+```ts
+type Tree = [lng: number, lat: number, dbh: number];  // dbh in inches, 1 decimal
+```
+From the Forestry inventory, excluding `CONDITION` "Stump" and "Dead" and all vacant-site records. Not part of the initial load or the 5 MB budget check; the frontend fetches it on first zoom past 15.
+
+## `cooling_centers.geojson`
+~29 Point features. Properties: `name`, `address`, `nb` (neighborhood), `hours` (string or null), `url` (string or null).
 
 ## `stats.json`
 ```ts
@@ -96,6 +110,13 @@ LightGBM `dump_model()` output, pruned to `feature_names` plus `tree_info[].tree
 { pipelineKWh, pipelineGCO2, trainKWh, trainGCO2, region, measuredAt,
   devAiNote: string, cloudRefs: [{ name, wh, ml, source }] }
 ```
+
+## `corpus_chunks.json` (optional, only for on-device chat mode)
+Written by `backend/build_corpus.py`. Text only, no vectors.
+```ts
+[{ id: string, title: string, url: string, source: string, text: string }]
+```
+The frontend must work when this file is missing.
 
 ## Optimizer interface (TS, Web Worker)
 ```ts

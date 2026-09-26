@@ -1,0 +1,19 @@
+Main goal: 
+A web application that plans out where to most optimally plant trees throughout Baltimore. There will be 3 tabs: Current state, Plan, and Learn. 
+I want this application to be extremely visually impressive, with animations where possible. 
+
+Categories: 
+Environmental and Community Impact
+
+Tabs:
+Current state - An interactive map (you can zoom in, move around, etc.) that shows you how much tree coverage there is around different neighborhoods in Baltimore. I'm thinking of doing a choropleth map for this, and also seeing how tree coverage interacts with over variables -- heat and median household income -- though I am also to other variables. I am also open to other kinds of maps that would look very visually appealing (impressive for a hackathon). It should also tell you some statistical information about how these variables interact in a collapsible panel on the side. I'm not 100% sure how this will work or what kind of information I want, but we can talk about this.
+
+Plan - I want to build some kind of ML/statistical model (or fine-tune a model, or utilize some existing model that I can run locally -- idk if that's the right language, but I essentially don't want to be calling some API like gemini or claude because that wastes water, I want to run a lightweight eco-friendly model) that can tell you the most optimal place on the map to plant trees, given some budget (or # of trees that we can plant). This will be displayed on a map. The user should be able to provide the budget (maybe as a textbox or a slider), and the map will update accordingly. This will help urban planners figure out where to most optimally plant trees. Maybe there should also be some options to avoid certain areas, or to optimize certain things (eg. maybe you want to focus on low-income areas). I want some advice on what kind of model I could build for this and how I could build it.
+
+Learn - This part is purely for education - to teach about the advantages of planting trees. I'm thinking of having a locally run LLM (same idea as the other ML model) that you can chat with to teach you about why planting trees is important. There should also be a place to tell people how to help -- probably just a link to some tree-planting nonprofits. I also want ideas here on how I could build this. 
+
+
+Tools I have kind of looked into, please suggest any more that will be helpful:
+- https://data.baltimorecity.gov/ has Baltimore-specific data that I can use. This will be a very helpful resource for figuring out what other variables I want to consider for my maps.
+- Geopandas and/or openstreepmaps for map visualization
+- Langgraph for AI agent orchestration. I'm thinking of using multiple AI agents to execute this project, though I'm not completely sure how to do that yet. 

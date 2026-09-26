@@ -1,0 +1,138 @@
+# Club Guilds
+🎮 **Game Jamathon**, founded by **Game Developers Club**
+-# Game Jam - Want to make a game? Write code, make art, compose music, design mechanics, and build stories to create a playable game for our Game Jamathon! Submissions should be functional, have good aesthetics, be polished, creative, and have a strong connection to our theme announced at the opening ceremony. Projects will be judged by presenting them to our industry professional judges during the judging period. As for what you make, there are no restrictions on what kind of game to make. However, any AI usage must be disclosed, and you may not use AI for asset creation.
+
+👾 **Cybersecurity Application Track**, founded by **CyberDawgs**
+-# Cyber Track - Your challenge is to develop a sophisticated application that assists in the overall goal of increasing the Cybersecurity capabilities of defenders whether that be in logging, hardening or otherwise. In addition to this app you must provide extensive documentation on how the app works, what it does and what users have control over. 
+
+🏥 **Health Beyond the Clinic: The Future of Care**, founded by **Premed Society**
+-# Health Track - You will identify a real problem involving healthcare, public health, accessibility, hospital systems, wellness, fitness, mental health, or health education and build a technological solution for it. 
+
+🍃 **Best Environmental Idea**, founded by **ETF**
+-# Environmental Track - Design a project that reduces environmental harm or strengthens ecological resilience by critically and creatively applying artificial intelligence. Your submission should explore how technology can be used responsibly, ethically, and sustainably and how to put the Earth/climate/environment/local community habitats first while acknowledging the real environmental costs of AI systems. 
+
+🤝 **Community Impact and Social Innovation**, founded by **STARS**
+-# Social Impact Track - Design a project that demonstrates a clear understanding of the needs of the Baltimore or UMBC community and explain how the proposed solution could create meaningful, measurable impact. Teams should present a realistic plan for evaluating that impact and show how their project responds to a genuine community challenge.
+
+💻 **Best Entrepreneurial Idea**, founded by **Entrepreneurs Club**
+-# Best Entrepreneurial Idea - Pick a real-world problem in any field, and design a product or service that solves it. This isn't limited to any one industry: your idea could be a physical product, a digital platform, a service, or anything in between. The goal is to walk away with a working demo and a pitch that could convince real users and real investors that your idea is worth backing.
+
+# Company and Miscellaneous Guilds
+📜 **Navigating the Future: Career Pathways & Degree ROI**, founded by **Division of Information Technology**
+-# DoIT Track - Every student asks themselves: "Where will my degree actually take me?" In this track, teams will use rich synthetic campus and alumni datasets—spanning majors, graduation years, industry movements, salary bands, micro-credentials, and course records—to build interactive tools that help students chart their academic and professional journeys. Whether you design a visual career-pathway graph, an AI advisor that calculates degree ROI, a tool that matches student engagement to real-world job outcomes or something else, your goal is to help students translate their time at UMBC into long-term success.
+
+💵 **NextGen Finance Innovation Challenge**, founded by **T. Rowe Price**
+-# T. Rowe Price Track - The financial industry is being reshaped by exchange-traded funds (ETFs), artificial intelligence (AI), and digital assets and tokenization. This challenge asks teams to identify a real financial problem and show how one or more of these technologies could be used to solve it responsibly.
+
+🖼️ **Best Design**, founded by **hackUMBC**
+-# Best Design - Your task is simple: using the reference photo as a baseline, showcase your finest art skills to get as close as possible to immortalizing True Grit's pure reverence into a piece of media. The medium you work in is up to you; whether you choose to photoshop the baseline photo or draft an animated GIF, Her Truest Grit will accept any and all forms of submission.
+
+👑 **Best Meme**, founded by **hackUMBC**
+-# Best Meme - Take a photo of an organizer (or group of organizers) from the google drive and turn them into a meme! Upload your meme to ⁠best-meme-track whenever you're ready. All community members will vote on the best one!
+
+
+MLH Sponsored Prizes: 
+
+Best Use of ElevenLabs
+
+⭐ Wireless Earbuds ⭐
+
+Best Use of ElevenLabs logo
+Deploy natural, human-sounding audio with ElevenLabs. Create realistic, dynamic, and emotionally expressive voices for any project, from interactive AI companions to narrated stories and voice-enabled apps. ElevenLabs will empower you to build rich, immersive experiences without the need for actors or complex audio production, using simply the power of AI.
+
+Integrate fully autonomous audio experiences into your hack with ElevenLabs and give your project a voice, along with giving your team the chance to win some wireless earbuds!
+Promo Code: Claim your ElevenLabs Q4 2025 - Q4 2026 promo code now!
+
+ 
+Best Use of Gemini API
+
+⭐ MLH Swag Kits ⭐
+
+Best Use of Gemini API logo
+It’s time to push the boundaries of what's possible with AI using Google Gemini. Check out the Gemini API to build AI-powered apps that make your friends say WHOA. So, what can Gemini do for your hackathon project?
+Understand language like a human and build a chatbot that gives personalized advice
+Analyze info like a supercomputer and create an app that summarizes complex research papers
+Generate creative content like code, scripts, music, and more
+Think of the possibilities… what will you build with the Google Gemini API this weekend?
+
+ 
+Best Use of Solana
+
+⭐ Ledger Nano S Plus ⭐
+
+Best Use of Solana logo
+The world of development is evolving fast and Solana is leading the charge with a network built to handle all of your infrastructure needs. Forget high fees and slow confirmations, it’s time to build applications that are fast, efficient, and scalable.
+
+Harness Solana's core advantages like blazing fast execution and near-zero transaction costs to make your hackathon ideas become real world projects. With Solana, the possibilities are endless.
+Create a game, social app, or consumer product that relies on instant, high-frequency transactions.
+Design a sophisticated trading, lending, or decentralized exchange (DEX).
+Build a prototype for supply chain, identity, or payments that can handle massive, real-world volume.
+Show us how you can innovate with Solana for a chance to win some cool prizes for you and each member of your team!
+
+ 
+Best Use of Tiger Data
+
+⭐ Stream Deck Mini ⭐
+
+Best Use of Tiger Data logo
+Building high-performance apps under hackathon deadlines shouldn't mean spending half your weekend configuring complex databases or learning obscure query languages. Tiger Data extends PostgreSQL to give student developers an ultra-fast foundation for real-time data, time-series metrics, and complex analytics.
+
+Why build with Tiger Data this weekend?
+
+Standard SQL Power: Query massive datasets instantly using the SQL you already know, with no complex NoSQL aggregation pipelines required.
+
+Unified Data Stack: Store relational user profiles and high-frequency metric streams side-by-side in a single database.
+
+Instant Dashboards: Serve lag-free, real-time frontend charts using pre-computed Continuous Aggregates.
+
+90%+ Data Compression: Store millions of events on free-tier cloud instances without running out of disk space.
+
+Whether you’re building real-time IoT monitoring, AI-driven analytics dashboards, or financial prediction engines, show us how Tiger Data powers your project. The team that demonstrates the most innovative, impactful, and performance-driven use of Tiger Data will take home some great prizes!
+
+
+ 
+Best Use of Backboard
+
+⭐ Tile Essentials Pack ⭐
+
+Best Use of Backboard logo
+Every AI model API is stateless by default. That means your app forgets everything the second a session ends. State management should be the first step of any AI build, regardless of what LLM you are using, and Backboard gives you that for free. But Backboard is not just state management. It is a single, unified API built on the world's #1 AI memory that gives you everything you need in one place: long-term memory, RAG, embeddings, tool calls, model routing across 17,000+ LLMs, and persistent context that stays alive across every page refresh, session, and user. No stitching together five different services. One API. One integration. Built on the best memory in AI.
+
+Here’s just a small list of things Backboard can make possible for your AI app!
+
+AI-powered Travel Guide: Remembers allergies and preferences from past trips.
+Personalized Fitness Coach: Adjusts workouts based on progress and injury history.
+Smart Home Controller: Learns routines over time to anticipate lighting and climate preferences!
+
+Use Backboard to build a seamless, persistent user experience without the usual infrastructure headache! Each winning team member will receive a Tiles Essentials Pack because, just like AI,  we all need an occasional reminder of where things are!
+
+Promo Code: HACKUMBC
+
+ 
+Best Use of DigitalOcean
+
+⭐ Retro Wireless Mouse ⭐
+
+Best Use of DigitalOcean logo
+DigitalOcean offers a reliable and easy-to-use cloud platform for every stage of your project. Leverage core services like Droplets, Managed Databases, and App Platform to build, deploy, and scale your application effortlessly. Building with AI? DigitalOcean Gradient™ AI enables you to build, train, and deploy machine learning models, including access to GPU infrastructure and serverless inference!
+
+Sign up for DigitalOcean today and reach out to your MLH Coach for credits that you can use towards building your next great hack. Build with DigitalOcean's robust cloud infrastructure for a chance to win some great prizes for you and each of your teammates!
+
+ 
+Best Use of Snowflake API
+
+⭐ Raspberry Pi 4 ⭐
+
+Best Use of Snowflake API logo
+Play with industry-leading LLMs on a single account using the Snowflake APIs. Adding AI capabilities into your application can be as simple as a single CURL command to Snowflake’s REST API.
+
+Build customized applications, RAG powered chat bots, or embed AI-powered features into your app in half the time with half the hassle. Get started for free with a special, student 120-day Snowflake trial and check out this repository for an example of the Snowflake REST API in action.
+
+ 
+Best Domain Name from GoDaddy Registry
+
+⭐ Digital Gift Card ⭐
+
+Best Domain Name from GoDaddy Registry  logo
+GoDaddy Registry is giving you everything you need to be the best hacker no matter where you are. Register your domain name with GoDaddy Registry for a chance to win some amazing prizes! 
+Promo Code: MLH0926HU

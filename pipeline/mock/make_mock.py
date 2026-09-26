@@ -2,13 +2,16 @@
 before the real pipeline lands. Values are synthetic but spatially plausible.
 
 Run: python -m pipeline.mock.make_mock
-Needs only h3 + numpy, plus the raw neighborhoods/HOLC files for real polygons.
+Needs h3, numpy and shapely, plus the raw neighborhoods/HOLC/trees/cooling-center files
+(polygons, trees and cooling centers are real; per-hex values are synthetic).
 """
 import json
 import math
 
 import h3
 import numpy as np
+from shapely.geometry import mapping, shape
+from shapely.ops import unary_union
 
 from pipeline.config import COST, H3_RES, NMAX, RAW, WEB_DATA
 
@@ -225,10 +228,36 @@ def main():
         p["bivHeat"] = can_t * 3 + tercile(heat_vals, p["heat"])
         p["bivIncome"] = can_t * 3 + (2 - tercile(inc_vals, p["income"]))
         p["canopyGap"] = r(max(0.0, 0.40 - p["canopy"]))
+        lp = shape(f["geometry"]).representative_point()
+        p["labelLng"], p["labelLat"] = round(lp.x, 5), round(lp.y, 5)
         nb_feats.append({"type": "Feature", "properties": {"name": name, **p}, "geometry": simplify(f["geometry"])})
 
     holc_out = [{"type": "Feature", "properties": {"grade": f["properties"]["grade"]}, "geometry": simplify(f["geometry"])}
                 for f in holc_feats]
+
+    # small buffer out/in closes slivers between neighborhood polygons
+    city_geom = unary_union([shape(f["geometry"]).buffer(0) for f in nb_raw["features"]]).buffer(0.0001).buffer(-0.0001).simplify(0.0001)
+    city = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"name": "Baltimore"}, "geometry": simplify(json.loads(json.dumps(mapping(city_geom))))}]}
+
+    # live trees (real), limited to the mock hex area so the mock stays small
+    trees_raw = json.load(open(RAW / "trees" / "trees_all_other.geojson"))
+    trees = []
+    for f in trees_raw["features"]:
+        pr = f["properties"]
+        if pr.get("CONDITION") in ("Stump", "Dead") or not f["geometry"]:
+            continue
+        lng, lat = f["geometry"]["coordinates"][:2]
+        if h3.latlng_to_cell(lat, lng, H3_RES) in cell_set:
+            trees.append([round(lng, 5), round(lat, 5), round(float(pr.get("DBH") or 0), 1)])
+
+    cc_raw = json.load(open(RAW / "context" / "cooling_centers.geojson"))
+    cooling = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": round_coords(f["geometry"]["coordinates"][:2])},
+         "properties": {"name": f["properties"]["NAME"], "address": f["properties"]["ADDRESS"],
+                        "nb": f["properties"]["NGHBRHD"], "hours": f["properties"].get("Open_Hrs"),
+                        "url": f["properties"].get("URL")}}
+        for f in cc_raw["features"] if f["geometry"]]}
 
     stats = mock_stats(hexes, sites, nb_props, heat_med)
     footprint = dict(
@@ -242,6 +271,9 @@ def main():
         "sites.json": sites,
         "neighborhoods.geojson": {"type": "FeatureCollection", "features": nb_feats},
         "holc.geojson": {"type": "FeatureCollection", "features": holc_out},
+        "city.geojson": city,
+        "trees.json": trees,
+        "cooling_centers.geojson": cooling,
         "stats.json": stats,
         "species.json": species,
         "footprint.json": footprint,
@@ -250,7 +282,8 @@ def main():
         path = WEB_DATA / name
         path.write_text(json.dumps(obj, separators=(",", ":")))
         print(f"{name:24s} {path.stat().st_size / 1e6:6.2f} MB")
-    print(f"hexes={len(hexes)} sites={len(sites)} neighborhoods={len(nb_feats)} holc={len(holc_out)}")
+    print(f"hexes={len(hexes)} sites={len(sites)} neighborhoods={len(nb_feats)} holc={len(holc_out)} "
+          f"trees={len(trees)} cooling={len(cooling['features'])}")
 
 
 def mock_species():
