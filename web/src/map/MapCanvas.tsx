@@ -56,6 +56,23 @@ function addExtraSources(map: MLMap, labelLayerId: string | undefined) {
   }
 }
 
+/** Camera helpers work before the style/tiles finish loading, so register them as soon as the map exists. */
+function registerMapCamera(map: MLMap, registerCamera: ReturnType<typeof useStore.getState>['registerCamera']) {
+  registerCamera({
+    flyTo: (v: CameraView) =>
+      map.flyTo({
+        center: [v.longitude, v.latitude],
+        zoom: v.zoom,
+        pitch: v.pitch ?? map.getPitch(),
+        bearing: v.bearing ?? map.getBearing(),
+        duration: v.duration ?? 1800,
+        essential: true,
+      }),
+    fitBounds: (b, opts) =>
+      map.fitBounds(b, { padding: opts?.padding ?? 80, pitch: opts?.pitch ?? map.getPitch(), duration: opts?.duration ?? 1600 }),
+  })
+}
+
 export function MapCanvas() {
   const mapRef = useRef<MapRef>(null)
   const tab = useStore((s) => s.tab)
@@ -64,25 +81,18 @@ export function MapCanvas() {
   const registerCamera = useStore((s) => s.registerCamera)
   const { layers, getTooltip } = useLayers()
 
+  useEffect(() => {
+    const map = mapRef.current?.getMap()
+    if (map) registerMapCamera(map, registerCamera)
+  }, [registerCamera])
+
   const onLoad = useCallback(() => {
     const map = mapRef.current?.getMap()
     if (!map) return
     const firstSymbol = map.getStyle().layers.find((l) => l.type === 'symbol')?.id
     addExtraSources(map, firstSymbol)
     setMap({ labelLayerId: firstSymbol })
-    registerCamera({
-      flyTo: (v: CameraView) =>
-        map.flyTo({
-          center: [v.longitude, v.latitude],
-          zoom: v.zoom,
-          pitch: v.pitch ?? map.getPitch(),
-          bearing: v.bearing ?? map.getBearing(),
-          duration: v.duration ?? 1800,
-          essential: true,
-        }),
-      fitBounds: (b, opts) =>
-        map.fitBounds(b, { padding: opts?.padding ?? 80, pitch: opts?.pitch ?? map.getPitch(), duration: opts?.duration ?? 1600 }),
-    })
+    registerMapCamera(map, registerCamera)
     // Debug/inspection hook (read-only use from the browser console).
     ;(window as unknown as { __map?: MLMap }).__map = map
   }, [registerCamera, setMap])

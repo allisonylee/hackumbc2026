@@ -85,11 +85,13 @@ type State = {
   dialogs: { footprint: boolean; evaluation: boolean; modelCard: boolean }
   setDialog: (d: keyof State['dialogs'], open: boolean) => void
 
-  /** Registered by MapCanvas. No-op until the map loads. */
+  /** Registered by MapCanvas. A call made before the map exists is queued and replayed on registration. */
   flyTo: (v: CameraView) => void
   fitBounds: (b: [[number, number], [number, number]], opts?: { pitch?: number; padding?: number; duration?: number }) => void
   registerCamera: (fns: { flyTo: State['flyTo']; fitBounds: State['fitBounds'] }) => void
 }
+
+let pendingCamera: (() => void) | null = null
 
 export const useStore = create<State>()((set) => ({
   data: null,
@@ -146,7 +148,12 @@ export const useStore = create<State>()((set) => ({
   dialogs: { footprint: false, evaluation: false, modelCard: false },
   setDialog: (d, open) => set((s) => ({ dialogs: { ...s.dialogs, [d]: open } })),
 
-  flyTo: () => {},
-  fitBounds: () => {},
-  registerCamera: ({ flyTo, fitBounds }) => set({ flyTo, fitBounds }),
+  flyTo: (v) => { pendingCamera = () => useStore.getState().flyTo(v) },
+  fitBounds: (b, opts) => { pendingCamera = () => useStore.getState().fitBounds(b, opts) },
+  registerCamera: ({ flyTo, fitBounds }) => {
+    set({ flyTo, fitBounds })
+    const p = pendingCamera
+    pendingCamera = null
+    p?.()
+  },
 }))
