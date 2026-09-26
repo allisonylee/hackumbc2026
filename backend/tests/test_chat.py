@@ -28,7 +28,7 @@ OK = [
 
 
 def client(transport, index=None, **kw) -> TestClient:
-    return TestClient(create_app(Settings(**kw), transport=transport, index=index))
+    return TestClient(create_app(Settings(**kw), transport=transport, index=index, data=None))
 
 
 def events(res) -> list[dict]:

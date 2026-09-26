@@ -90,7 +90,7 @@ def test_chat_sends_sources_and_puts_them_in_prompt():
         done = {"message": {"content": "Shade [1]."}, "done": True, "eval_count": 3}
         return httpx.Response(200, content=(json.dumps(done) + "\n").encode())
 
-    app = create_app(Settings(), transport=httpx.MockTransport(handler), index=idx())
+    app = create_app(Settings(), transport=httpx.MockTransport(handler), index=idx(), data=None)
     with TestClient(app) as c:
         res = c.post("/api/chat", json={"messages": [{"role": "user", "content": "How do trees cool?"}]})
     ev = [json.loads(l) for l in res.text.splitlines()]

@@ -14,6 +14,8 @@ class Settings:
     model: str = field(default_factory=lambda: os.getenv("MODEL", "qwen3.5:2b"))
     embed_model: str = field(default_factory=lambda: os.getenv("EMBED_MODEL", "embeddinggemma"))
     region: str = field(default_factory=lambda: os.getenv("REGION_LABEL", "local"))
+    # Link shown on "App data" source cards.
+    app_url: str = field(default_factory=lambda: os.getenv("APP_URL", "https://github.com/allisonylee/hackumbc2026"))
     # Vite dev (5173) and `vite preview` (4173) by default; add the deployed site's origin in production.
     allowed_origins: list[str] = field(
         default_factory=lambda: _list("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173")

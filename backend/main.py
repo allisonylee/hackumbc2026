@@ -22,6 +22,8 @@ from config import MAX_CHARS, MAX_MESSAGES, Settings
 from energy import estimate_wh
 from llm import OllamaError, Usage, build_messages, stream_answer
 from rag import Index, format_sources, retrieve, search_query
+from router import Router
+from tools import AppData
 
 log = logging.getLogger("canopy")
 
@@ -74,10 +76,13 @@ def create_app(
     settings: Settings | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
     index: "Index | None | object" = _UNSET,
+    data: "AppData | None | object" = _UNSET,
 ) -> FastAPI:
-    """`transport` lets tests swap in a fake Ollama; `index` a corpus (None = no sources)."""
+    """Tests can swap in a fake Ollama (`transport`), a corpus (`index`) and app data (`data`); None disables each."""
     settings = settings or Settings()
     corpus = Index.load(settings) if index is _UNSET else index
+    app_data = AppData.load() if data is _UNSET else data
+    router = Router(app_data, corpus.lowercase_words() if corpus else set())
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -108,9 +113,12 @@ def create_app(
         client = request.app.state.ollama
 
         async def events() -> AsyncIterator[bytes]:
-            # Routing to neighborhood/site facts arrives in step 4.
-            hits = await retrieve(corpus, client, settings, search_query(history))
-            items, sources = format_sources(hits)
+            question = history[-1]["content"]
+            route = router.route(question, body.context.model_dump() if body.context else None)
+            query = f"{search_query(history)} {route.extra_query}".strip()
+            k = max(2, 4 - len(route.facts))  # keep the prompt small for the 2B model
+            hits = await retrieve(corpus, client, settings, query, k)
+            items, sources = format_sources(hits, route.facts, settings.app_url)
             messages = build_messages(history, sources)
             yield line({"type": "sources", "items": items})
             try:

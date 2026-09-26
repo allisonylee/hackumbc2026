@@ -107,6 +107,10 @@ class Index:
             raise ValueError(f"index built with {built_with!r} but EMBED_MODEL is {settings.embed_model!r}")
         return cls(chunks, z["vectors"])
 
+    def lowercase_words(self) -> set[str]:
+        """Words the corpus uses in lowercase, i.e. as ordinary words rather than names."""
+        return {w for c in self.chunks for w in re.findall(r"\b[a-z]+\b", c["text"])}
+
     def search(self, q: str, qvec: np.ndarray | None, k: int = K) -> list[Hit]:
         """qvec=None (embedding unavailable) falls back to keywords only."""
         qt = tokens(q)
@@ -154,8 +158,10 @@ def search_query(history: list[dict]) -> str:
     return q
 
 
-def format_sources(hits: list[Hit]) -> tuple[list[dict], str]:
-    """(items for the `sources` event, SOURCES block for the prompt)."""
-    items = [{"n": n, "title": h.chunk["title"], "url": h.chunk["url"]} for n, h in enumerate(hits, 1)]
-    block = "\n\n".join(f"[{n}] {h.chunk['title']} ({h.chunk['source']})\n{h.chunk['text']}" for n, h in enumerate(hits, 1))
-    return items, (f"SOURCES:\n{block}" if hits else "")
+def format_sources(hits: list[Hit], facts: list | None = None, app_url: str = "") -> tuple[list[dict], str]:
+    """(items for the `sources` event, SOURCES block for the prompt). App-data facts come first."""
+    entries = [(f.title, app_url, "Baltimore Tree Planting Planner", f.text) for f in facts or []]
+    entries += [(h.chunk["title"], h.chunk["url"], h.chunk["source"], h.chunk["text"]) for h in hits]
+    items = [{"n": n, "title": t, "url": u} for n, (t, u, _, _) in enumerate(entries, 1)]
+    block = "\n\n".join(f"[{n}] {t} ({src})\n{text}" for n, (t, _, src, text) in enumerate(entries, 1))
+    return items, (f"SOURCES:\n{block}" if entries else "")
