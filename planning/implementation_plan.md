@@ -74,7 +74,7 @@ Assumes: solo builder, a 24–36 h hackathon, 2–3 parallel Claude Code session
   ollama pull embeddinggemma
   ```
 - [ ] **Download large public files** to a scratch folder, if pre-event downloading is allowed:
-  - Chesapeake 1 m land cover for Baltimore City. Get 2021/22, and 2013 too if you want the time-lapse or backtest. ~37 MB each.
+  - Chesapeake 1 m land cover for Baltimore City. Get 2017/18 (heat-model training) and 2021/22 (current state), plus 2013 for the time-lapse or backtest. ~37 MB each.
   - Read the metadata XML and **write down the class codes** for tree canopy, impervious and water.
 - [ ] **Collect Learn-tab sources** by reading and saving URLs. You'll turn them into corpus files at the event:
   - TreeBaltimore pages.
@@ -164,8 +164,8 @@ type Hex = {
   road: number;            // 0–1 road fraction
   heat: number | null;     // °F, NOAA Heat Watch afternoon 2018-08-29 (mean); null if not covered
   heatAnom: number;        // °F minus city median (uses heatPred where heat is null)
-  heatPred: number;        // ML model prediction °F
-  heatResid: number | null;// heat − heatPred
+  heatPred: number;        // ML prediction °F with 2021 land cover
+  heatResid: number | null;// heat − prediction with 2018 land cover (model error in the measurement year)
   spill: number;           // extra °F·people of neighbor cooling per tree (0 if spillover skipped)
   income: number | null;   // tract median household income $
   poverty: number | null;  // 0–1 share below poverty line
@@ -349,10 +349,14 @@ hexes = gpd.GeoDataFrame({"h3": list(cells)},
 Expect about 14–16k cells.
 
 ### 4.5 `build/features.py`: per-hex features
-- [ ] **Land cover:**
-  - Reproject the hexes to the raster's CRS.
-  - Run `zonal_stats(..., categorical=True)` (or exactextract, which is faster).
-  - Compute `canopy`, `imperv` and `water` fractions. Repeat for 2013 if you have it.
+- [ ] **Land cover, two years** (see "Which land cover year" in §5.1):
+  - **2018** layer → the training features `X18`, matching the 2018-08-29 heat data.
+  - **2021** layer → the current features `X21`, used for the map, `heatPred`, the cooling curves and SHAP. This is what `canopy`, `imperv`, `bldg`, `road` in `hexes.json` show.
+  - 2013 layer → `canopy13` only (time-lapse).
+  - Both layers use the same 2024-Edition class codes, so one code-group mapping (in `pipeline/data/README.md`) serves both years.
+  - **Method:** the rasters are 1 m and ~19k × 19k px, so avoid per-polygon zonal stats. Rasterize the hex index onto the land cover grid once (reproject the hexes to the raster's CRS; `rasterio.features.rasterize` with the hex row number as the value), then for each year count classes per hex with `np.bincount(hex_id * N_CLASSES + class)`, reading the raster in windows. The same hex-id raster serves all three years.
+  - Compute `canopy`, `imperv`, `bldg`, `road`, `lowveg` and `water` fractions per year, and the neighbor features below for 2018 and 2021 separately.
+  - Check: citywide canopy 2018 vs. 2021 should differ by a few points at most. A big jump means a class-mapping bug.
 - [ ] **Heat:** `zonal_stats(hexes, heat_afternoon.tif, stats=["mean"])` → `heat`. Then `heatAnom = heat − median`.
   - Fill NaN hexes (outside traverse coverage) with the k-ring mean, or drop them from training.
 - [ ] **Neighbor features:** for each hex, take `h3.grid_disk(h, 2)` and compute `canopyLag` and `impervLag` as neighbor means, plus `waterNear` (water fraction within `grid_disk(h, 4)`).
@@ -425,6 +429,11 @@ Also Session B. **This is a core feature and is never cut.** The model is what t
 
 - **Leave socioeconomic variables out of the heat model** (income, race, etc.). They correlate with heat but don't cause it physically, so including them would corrupt the counterfactual. They enter only through the optimizer's priority weights.
 - **Drop training rows** where Heat Watch coverage is missing. Keep those hexes for prediction.
+- **Which land cover year** (decided 2026-09-26):
+  - **Train on 2018 land cover (`X18`)**, because the heat target was measured on 2018-08-29. Using 2021 features would pair each temperature with trees planted or lost after the measurement.
+  - **Predict, explain and run counterfactuals on 2021 land cover (`X21`)**, the most recent 1 m data. `heatPred`, `gains`, `spill` and `shap` all come from `X21`.
+  - **No newer usable data exists** (checked 2026-09-26). The Chesapeake 1 m LULC 2024 Edition (2013/2018/2021) is the latest; the next edition (2025–26 imagery) is expected before 2029. Newer products are 10–30 m with coarse classes (Esri/Impact Observatory 2025 at 10 m, Annual NLCD 2024 at 30 m, USFS canopy cover 2023 at 30 m). They can't separate roads, buildings or canopy over pavement, so they are **not** model inputs.
+  - Optional: compare citywide impervious from Annual NLCD 2024 against our 2021 numbers as a rough "not much has changed since" check for the model card.
 
 ### 5.2 `model/train_heat.py`
 - [ ] Wrap the whole script in `codecarbon.EmissionsTracker(project_name="heat_model", country_iso_code="USA", region="maryland")` and write the kWh and CO₂ out to `footprint.json`.
@@ -445,7 +454,10 @@ Also Session B. **This is a core feature and is never cut.** The model is what t
 - [ ] **Spatial cross-validation:** `GroupKFold(5)` with `groups = h3.cell_to_parent(h, 7)` (blocks about 5 km² each). Neighboring hexes are nearly identical, so random CV leaks information and inflates R².
   - Report R², RMSE and MAE for **random CV vs. spatial CV** vs. both baselines. Save to `stats.json.model`.
 - [ ] **Small tuning pass:** try `num_leaves ∈ {15, 31, 63}` × `min_child_samples ∈ {20, 50}`, scored by spatial CV. Keep the best. Budget about 10 minutes.
-- [ ] **Final fit** on all training rows. Predict `heatPred` for every hex and compute `heatResid = heat − heatPred`.
+- [ ] **Final fit** on all training rows (`X18`).
+  - `heatResid = heat − model.predict(X18)`: the model's error in the year the heat was measured.
+  - `heatPred = model.predict(X21)` for every hex: predicted afternoon temperature with current land cover.
+  - Report the citywide mean of `predict(X21) − predict(X18)` in the model card (the modeled effect of 2018→2021 land cover change).
 - [ ] **Save:** `model.txt` (LightGBM native) plus `web/public/data/heat_model.json` (`booster.dump_model()`, pruned to the tree structures) for the in-browser what-if (§5.6).
 - [ ] **Log** training time and energy. Expect seconds and a tiny fraction of a Wh, which is a great footprint-panel number.
 
@@ -461,6 +473,7 @@ The curve is measured per **crown unit** (25 m² of new canopy), not per tree, s
 Adding canopy to a hex also changes its neighbors' `canopyLag1`/`canopyLag3` features. The first version below changes only the hex's own `canopy`. The spillover step afterward adds the neighbor effect.
 ```python
 AREA = h3.average_hexagon_area(10, unit="m^2")        # ≈15,047
+X = X21                                               # counterfactuals start from current (2021) land cover
 base = model.predict(X)
 cum = np.zeros((len(X), NMAX_UNITS))
 for n in range(1, NMAX_UNITS + 1):                     # n = crown units added
@@ -484,7 +497,7 @@ hexes["gains"] = [m[:int(units.get(h, 0))].round(4).tolist() for m, h in zip(mar
 - [ ] Hexes with `cap = 0` get no curve but keep `heatPred` and `shap`.
 
 ### 5.5 SHAP explanations
-- [ ] `explainer = shap.TreeExplainer(model)`; compute `shap_values(X)` for all hexes (seconds).
+- [ ] `explainer = shap.TreeExplainer(model)`; compute `shap_values(X21)` for all hexes (seconds), so explanations describe the blocks as they are now.
 - [ ] Per hex: top 3 features by |value| → `shap` field, e.g. `[["imperv", 2.1], ["canopy", 1.4], ["waterNear", -0.6]]`. Units are °F relative to the city average.
 - [ ] Global: mean |SHAP| per feature → `stats.json.model.importance`, for the model-card bar chart. Also save a beeswarm PNG for the slides.
 - [ ] Frontend label map: `imperv` → "Pavement & roofs", `canopy` → "Tree cover", `canopyLag3` → "Trees nearby", `waterNear` → "Near water", `road` → "Roads", `bldg` → "Buildings", and so on.
@@ -503,6 +516,7 @@ hexes["gains"] = [m[:int(units.get(h, 0))].round(4).tolist() for m, h in zip(mar
   - feature importance;
   - training energy;
   - known limitations: a single hot day; air temperature from a car traverse; no night-time model; LightGBM step-shaped curves; no humidity;
+  - land cover years: trained on 2018, applied to 2021; 1 m land cover newer than 2021 doesn't exist yet;
   - optimizer assumptions: crown sizes, and the survival table (not calibrated to local data, see §4.5), both from `stats.json.assumptions`;
   - diminishing returns is a simplification: Ziter 2019 found cooling strengthens above ~40% canopy, but the greedy optimizer needs concave curves.
 - [ ] **Backtest (optional):** needs 2013 canopy plus a second heat source, so it's usually skipped. Save a note on why it was skipped.

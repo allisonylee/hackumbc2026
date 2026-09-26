@@ -19,8 +19,8 @@ type Hex = {
   road: number;            // 0–1 road fraction
   heat: number | null;     // °F, NOAA Heat Watch afternoon 2018-08-29 (mean); null if not covered
   heatAnom: number;        // °F minus city median (uses heatPred where heat is null)
-  heatPred: number;        // ML model prediction °F
-  heatResid: number | null;// heat − heatPred
+  heatPred: number;        // ML prediction °F with 2021 land cover
+  heatResid: number | null;// heat − prediction with 2018 land cover (model error in the measurement year)
   spill: number;           // extra °F·people of neighbor cooling per crown unit (0 if spillover skipped)
   income: number | null;   // tract median household income $
   poverty: number | null;  // 0–1 share below poverty line
