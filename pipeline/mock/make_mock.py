@@ -190,6 +190,8 @@ def main():
         hexes.append(dict(
             h3=x["h3"], nb=x["nb"], canopy=r(x["canopy"]), canopy13=r(min(1, x["canopy"] + rng.normal(0.01, 0.02))),
             imperv=r(x["imperv"]), bldg=r(x["bldg"]), road=r(x["road"]),
+            lowveg=r(max(0.0, 1 - x["canopy"] - x["imperv"]) * 0.8),
+            waterNear=r(max(0.0, 0.3 - 0.12 * km((x["lat"], x["lng"]), HARBOR)) if km((x["lat"], x["lng"]), HARBOR) < 2.5 else 0.0),
             heat=r(x["heat"]), heatAnom=r(heat_for_anom - heat_med), heatPred=r(x["heatPred"]),
             heatResid=None if x["heat"] is None else r(x["heat"] - x["heatPred"]),
             spill=r(g0 * 20), income=round(x["income"]), poverty=r(x["poverty"]), poc=r(x["poc"]),
