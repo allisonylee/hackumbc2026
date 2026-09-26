@@ -98,7 +98,7 @@ function greedy(P: Prepared, E: Eligible, p: Params, hexIdx: number[], budget: n
 function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
   const hexIndex = P.index
   const perHex: Record<string, number> = {}
-  let spent = 0, cooling = 0, lowInc = 0, holcCD = 0, co2 = 0, storm = 0, usd = 0
+  let spent = 0, cooling = 0, lowInc = 0, holcCD = 0, co2 = 0, storm = 0, usd = 0, surviving = 0
   const m = MATURITY[p.years]
   for (const s of picked) {
     const h = P.hexes[hexIndex.get(s.h3)!]
@@ -106,6 +106,7 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
     perHex[s.h3] = k + 1
     const b = benefit(h, k)
     spent += s.cost
+    surviving += s.surv
     cooling += b
     if (h.vulnEq >= LOW_INCOME_VULN) lowInc += b
     if (h.holc === 'C' || h.holc === 'D') holcCD++
@@ -114,21 +115,24 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
     storm += tb.stormGalYr * m
     usd += tb.usdYr * m
   }
-  let residents = 0, fSum = 0
+  let residents = 0, people = 0, fSum = 0
   const targeted = Object.keys(perHex)
   for (const id of targeted) {
     const h = P.hexes[hexIndex.get(id)!]
     residents += h.pop
+    people += h.people
     let f = 0
     for (let k = 0; k < perHex[id]; k++) f += h.gains[k]
     fSum += f
   }
   const impact: Impact = {
     trees: picked.length,
+    expectedSurviving: surviving,
     spent,
     coolingPersonF: cooling,
     avgFTargeted: targeted.length ? fSum / targeted.length : 0,
     residents,
+    peopleExposed: people,
     shareLowIncome: cooling > 0 ? lowInc / cooling : 0,
     shareHolcCD: picked.length ? holcCD / picked.length : 0,
     co2LbYr: co2,

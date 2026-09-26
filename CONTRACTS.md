@@ -21,7 +21,7 @@ type Hex = {
   heatAnom: number;        // °F minus city median (uses heatPred where heat is null)
   heatPred: number;        // ML model prediction °F
   heatResid: number | null;// heat − heatPred
-  spill: number;           // extra °F·people of neighbor cooling per tree (0 if spillover skipped)
+  spill: number;           // extra °F·people of neighbor cooling per crown unit (0 if spillover skipped)
   income: number | null;   // tract median household income $
   poverty: number | null;  // 0–1 share below poverty line
   poc: number | null;      // 0–1 share people of color
@@ -29,11 +29,15 @@ type Hex = {
   svi: number | null;      // 0–1 CDC SVI overall percentile
   holc: "A"|"B"|"C"|"D"|null;
   pop: number;             // estimated residents in hex
+  expo: number;            // 0–1 outdoor exposure: mean of bus boardings (log, normalized), school within
+                           // grid_disk(h,2), cooling center within grid_disk(h,4)
+  people: number;          // people exposed = pop + EXPO_W × expo × P90(pop); the optimizer uses this, not pop
   vulnEq: number;          // 0–1 equity score (poverty/income/poc composite)
   vulnHealth: number;      // 0–1 health score (asthma/svi composite)
   flood: boolean;          // intersects FEMA floodplain (optional)
   cap: number;             // # candidate sites used (≤ NMAX)
-  gains: number[];         // length cap; marginal °F cooling of the 1st..cap-th tree, non-increasing, ≥0
+  gains: number[];         // marginal °F cooling of each successive crown unit (25 m²) of new canopy;
+                           // length = min(Σ crown of the hex's first cap sites, NMAX_UNITS); non-increasing, ≥0
   shap: [string, number][];// top 3 [feature, contribution °F]
 };
 ```
@@ -51,9 +55,12 @@ type Site = {
   space: string | null;    // SPACE_TYPE (e.g., "Tree Lawn")
   nb: string;
   species: string;         // suggested species (rule-based)
+  size: "small" | "medium" | "large"; // size class of the suggested species
+  crown: 1 | 2 | 3;        // crown units at ~20 yrs (small 25 m², medium 50 m², large 75 m²)
+  surv: number;            // 0–1 expected survival (assumption table, mean = stats.assumptions.survMean)
 };
 ```
-Within each hex, sites are **sorted cheapest first**. The optimizer uses the k-th site for the k-th tree.
+Within each hex, sites are **sorted by `crown × surv / cost` descending** (ties cheapest first). The optimizer uses the k-th site for the k-th tree, and that tree takes the next `crown` entries of the hex's `gains` (entries past the end count as 0). Size, crown and survival rules live in `pipeline/site_rules.py`.
 
 ## `neighborhoods.geojson`: 279 features, simplified (mapshaper 8%)
 Properties:
@@ -92,7 +99,14 @@ From the Forestry inventory, excluding `CONDITION` "Stump" and "Dead" and all va
            importance: [feature, meanAbsShapF][],
            trainSeconds, trainWh, limitations: string[] },
   literature: { zaerpour_C_per10: 0.8, meta_C_per10: 0.3 },
-  treeBenefits: { small: {...}, medium: {...}, large: {...} } // USFS NE guide values
+  treeBenefits: { small: {...}, medium: {...}, large: {...} }, // USFS NE guide values
+  assumptions: {                                          // optimizer assumptions, shown in the model card
+    crownM2: { small, medium, large },                    // m² per size class
+    survMean: number,                                     // mean site survival
+    survBySpace: [space, surv][],                         // mean surv per SPACE_TYPE
+    expoW: number,                                        // EXPO_W in Hex.people
+    deadShareBySpace: [space, share][]                    // inventory dead/stump share (sanity check only)
+  }
 }
 ```
 
@@ -132,8 +146,10 @@ type Params = {
 type Result = {
   siteIds: string[];              // in selection order (rank → sprout delay)
   perHex: Record<string, number>; // h3 → trees
-  impact: { trees, spent, coolingPersonF, avgFTargeted, residents, shareLowIncome,
-            shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
+  impact: { trees, expectedSurviving, spent, coolingPersonF, avgFTargeted, residents,
+            peopleExposed, shareLowIncome, shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
+            // expectedSurviving = Σ surv; peopleExposed = Σ people over targeted hexes;
+            // cooling and eco benefits are survival-weighted expected values
 };
 allocate(p: Params): Result
 pareto(p: Params, steps = 21): { quota, cooling, shareLowIncome }[]

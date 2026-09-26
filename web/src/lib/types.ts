@@ -23,10 +23,15 @@ export type Hex = {
   svi: number | null
   holc: HolcGrade | null
   pop: number
+  /** 0–1 outdoor exposure (bus stops, schools, cooling centers) */
+  expo: number
+  /** pop + EXPO_W × expo × P90(pop); the optimizer uses this */
+  people: number
   vulnEq: number
   vulnHealth: number
   flood: boolean
   cap: number
+  /** marginal °F cooling per crown unit (25 m²) of new canopy, non-increasing */
   gains: number[]
   shap: [string, number][]
 }
@@ -43,6 +48,11 @@ export type Site = {
   space: string | null
   nb: string
   species: string
+  size: 'small' | 'medium' | 'large'
+  /** crown units: small 1, medium 2, large 3 */
+  crown: 1 | 2 | 3
+  /** 0–1 expected survival */
+  surv: number
 }
 
 export type NbProps = {
@@ -106,6 +116,13 @@ export type Stats = {
   }
   literature: { zaerpour_C_per10: number; meta_C_per10: number }
   treeBenefits: Record<'small' | 'medium' | 'large', TreeBenefit>
+  assumptions: {
+    crownM2: Record<'small' | 'medium' | 'large', number>
+    survMean: number
+    survBySpace: [string, number][]
+    expoW: number
+    deadShareBySpace: [string, number][]
+  }
 }
 
 export type Species = {
@@ -143,10 +160,12 @@ export type Params = {
 }
 export type Impact = {
   trees: number
+  expectedSurviving: number
   spent: number
   coolingPersonF: number
   avgFTargeted: number
   residents: number
+  peopleExposed: number
   shareLowIncome: number
   shareHolcCD: number
   co2LbYr: number

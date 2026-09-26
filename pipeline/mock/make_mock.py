@@ -13,7 +13,8 @@ import numpy as np
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
-from pipeline.config import COST, H3_RES, NMAX, RAW, WEB_DATA
+from pipeline.config import COST, CROWN_UNIT_M2, CROWN_UNITS, EXPO_W, H3_RES, NMAX, NMAX_UNITS, RAW, SURV_MEAN, WEB_DATA
+from pipeline.site_rules import crown_units, rescale_surv, size_class, surv_base
 
 rng = np.random.default_rng(42)
 DOWNTOWN = (39.2904, -76.6122)
@@ -120,7 +121,22 @@ def main():
         x["vulnEq"] = float((n_pov[i] + (1 - n_inc[i]) + n_poc[i]) / 3)
         x["vulnHealth"] = float((n_ast[i] + x["svi"]) / 2)
 
-    # --- sites: random points inside the hexes, then sort cheapest first per hex ---
+    # --- outdoor exposure: real cooling centers; synthetic bus stops and schools ---
+    cc_raw = json.load(open(RAW / "context" / "cooling_centers.geojson"))
+    cc_cells = {h3.latlng_to_cell(f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0], H3_RES)
+                for f in cc_raw["features"] if f["geometry"]}
+    cool_near = {n for c in cc_cells for n in h3.grid_disk(c, 4)}
+    school_cells = [cells[int(i)] for i in rng.choice(len(cells), 25, replace=False)]
+    school_near = {n for c in school_cells for n in h3.grid_disk(c, 2)}
+    bus = [max(0.0, rng.normal(400 * math.exp(-km((x["lat"], x["lng"]), DOWNTOWN) / 1.5), 60))
+           if rng.random() < 0.3 else 0.0 for x in rows]  # weekday boardings in grid_disk(h, 1)
+    n_bus = minmax(np.log1p(bus))
+    p90 = float(np.quantile([x["pop"] for x in rows], 0.9))
+    for i, x in enumerate(rows):
+        x["expo"] = float((n_bus[i] + (x["h3"] in school_near) + (x["h3"] in cool_near)) / 3)
+        x["people"] = x["pop"] + EXPO_W * x["expo"] * p90
+
+    # --- sites: random points inside the hexes, then sort by crown × surv / cost per hex ---
     cell_set = set(cells)
     sites_by_hex = {c: [] for c in cells}
     oid = 100000
@@ -144,14 +160,16 @@ def main():
     species = mock_species()
     by_size = {s: [x["name"] for x in species if x["size"] == s] for s in ("small", "medium", "large")}
     rot = {s: 0 for s in by_size}
+    all_sites = [s for c in cells for s in sites_by_hex[c]]
+    surv = rescale_surv([surv_base(s["type"], s["space"], s["width"]) for s in all_sites])
+    for s, sv in zip(all_sites, surv):
+        size = size_class(s["util"], s["type"], s["width"])
+        s["species"] = by_size[size][rot[size] % len(by_size[size])]
+        rot[size] += 1
+        s.update(size=size, crown=crown_units(size), surv=r(sv))
     sites = []
     for c in cells:
-        lst = sorted(sites_by_hex[c], key=lambda s: s["cost"])
-        for s in lst:
-            w = s["width"] or 0
-            size = "small" if s["util"] or w < 4 else ("medium" if w <= 6 else "large")
-            s["species"] = by_size[size][rot[size] % len(by_size[size])]
-            rot[size] += 1
+        lst = sorted(sites_by_hex[c], key=lambda s: (-s["crown"] * s["surv"] / s["cost"], s["cost"]))
         sites_by_hex[c] = lst
         sites += lst
 
@@ -160,8 +178,10 @@ def main():
     hexes = []
     for x in rows:
         cap = min(len(sites_by_hex[x["h3"]]), NMAX)
-        g0 = max(0.0, 0.02 + 0.06 * x["imperv"] - 0.04 * x["canopy"] + rng.normal(0, 0.005))
-        gains = [r(g0 * (0.93 ** k), 4) for k in range(cap)]
+        units = min(sum(s["crown"] for s in sites_by_hex[x["h3"]][:cap]), NMAX_UNITS)
+        # °F per crown unit (25 m²), decaying ~7% per 50 m² of added canopy
+        g0 = max(0.0, 0.01 + 0.03 * x["imperv"] - 0.02 * x["canopy"] + rng.normal(0, 0.0025))
+        gains = [r(g0 * (0.93 ** (k / 2)), 4) for k in range(units)]
         heat_for_anom = x["heat"] if x["heat"] is not None else x["heatPred"]
         shap_vals = sorted(((f, float(rng.normal(0, 1.2))) for f in rng.choice(feats, 3, replace=False)),
                            key=lambda t: -abs(t[1]))
@@ -172,6 +192,7 @@ def main():
             heatResid=None if x["heat"] is None else r(x["heat"] - x["heatPred"]),
             spill=r(g0 * 20), income=round(x["income"]), poverty=r(x["poverty"]), poc=r(x["poc"]),
             asthma=r(x["asthma"], 1), svi=r(x["svi"]), holc=x["holc"], pop=r(x["pop"], 1),
+            expo=r(x["expo"]), people=r(x["people"], 1),
             vulnEq=r(x["vulnEq"]), vulnHealth=r(x["vulnHealth"]), flood=x["flood"],
             cap=cap, gains=gains, shap=[[f, r(v)] for f, v in shap_vals],
         ))
@@ -240,7 +261,6 @@ def main():
         if h3.latlng_to_cell(lat, lng, H3_RES) in cell_set:
             trees.append([round(lng, 5), round(lat, 5), round(float(pr.get("DBH") or 0), 1)])
 
-    cc_raw = json.load(open(RAW / "context" / "cooling_centers.geojson"))
     cooling = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": round_coords(f["geometry"]["coordinates"][:2])},
          "properties": {"name": f["properties"]["NAME"], "address": f["properties"]["ADDRESS"],
@@ -249,6 +269,7 @@ def main():
         for f in cc_raw["features"] if f["geometry"]]}
 
     stats = mock_stats(hexes, sites, nb_props, heat_med)
+    stats["assumptions"] = mock_assumptions(sites, trees_raw)
     footprint = dict(
         pipelineKWh=0.012, pipelineGCO2=3.4, trainKWh=0.0004, trainGCO2=0.11, region="Maryland, USA",
         measuredAt="2026-09-26T00:00:00Z", devAiNote="MOCK: replace with real CodeCarbon numbers.",
@@ -292,6 +313,26 @@ def mock_species():
         s("London planetree", "Platanus × acerifolia", "large", False, 6, False),
         s("Kentucky coffeetree", "Gymnocladus dioicus", "large", False, 6, False),
     ]
+
+
+def mock_assumptions(sites, trees_raw):
+    """Optimizer assumptions for the model card. deadShareBySpace is real (inventory), survBySpace is from the mock sites."""
+    by_space = {}
+    for s in sites:
+        by_space.setdefault(s["space"], []).append(s["surv"])
+    dead = {}
+    for f in trees_raw["features"]:
+        pr = f["properties"]
+        d = dead.setdefault(pr.get("SPACE_TYPE"), [0, 0])
+        d[0] += pr.get("CONDITION") in ("Dead", "Stump")
+        d[1] += 1
+    return dict(
+        crownM2={k: v * CROWN_UNIT_M2 for k, v in CROWN_UNITS.items()},
+        survMean=SURV_MEAN,
+        survBySpace=[[k, r(np.mean(v))] for k, v in sorted(by_space.items(), key=lambda kv: -len(kv[1])) if k],
+        expoW=EXPO_W,
+        deadShareBySpace=[[k, r(a / n)] for k, (a, n) in sorted(dead.items(), key=lambda kv: -kv[1][1]) if k and n >= 200],
+    )
 
 
 def mock_stats(hexes, sites, nb_props, heat_med):

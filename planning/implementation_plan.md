@@ -150,7 +150,7 @@ hackumbc2026/
 
 Keep keys short but readable. Round coordinates to 5 decimals and floats to 3.
 
-> **Pending contract change (2026-09-26):** the tree-size, survival and exposure additions (`Hex.expo`, `Hex.people`, crown-unit `gains` and `spill`, `Site.size/crown/surv`, the new site sort order, `stats.assumptions`, and the new `impact` fields) are written here but not yet in `CONTRACTS.md`. Apply them on `main` together with `pipeline/mock/make_mock.py`.
+> **Contract change applied (2026-09-26):** tree size, survival and exposure fields are in `CONTRACTS.md`, `web/src/lib/types.ts` and the mock. The optimizer (§8.1) still needs to switch to the crown-unit formula.
 
 ### `hexes.json`: array, one object per H3 res-10 cell (~14–16k)
 ```ts
