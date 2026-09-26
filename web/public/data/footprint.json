@@ -1,1 +1,1 @@
-{"pipelineKWh":0.012,"pipelineGCO2":3.4,"trainKWh":0.0004,"trainGCO2":0.11,"region":"Maryland, USA","measuredAt":"2026-09-26T00:00:00Z","devAiNote":"MOCK: replace with real CodeCarbon numbers.","cloudRefs":[{"name":"Typical cloud chatbot query","wh":0.3,"ml":null,"source":"MOCK"}]}
+{"pipelineKWh":8.5e-05,"pipelineGCO2":0.039,"trainKWh":3e-07,"trainGCO2":0.00014,"region":"Maryland, USA","measuredAt":"2026-09-26T22:03:30Z","devAiNote":"Not estimated yet.","cloudRefs":[]}
