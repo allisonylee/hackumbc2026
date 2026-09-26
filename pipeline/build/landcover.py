@@ -3,12 +3,15 @@
 Chesapeake 1 m LULC (2024 Edition). Instead of per-polygon zonal stats, each window of the raster gets the hex
 row index painted onto it (pixel-center rule), and class counts per hex come from one np.bincount per year.
 Fractions are over valid (non-NoData) pixels; `valid_m2` records how much of the hex the raster covers.
+Cells are the grid plus a BUFFER-ring halo (`inGrid` = False), so neighbor features can see the harbor and
+streams: neighborhood polygons exclude open water, but the city raster covers it.
 
 Groups (codes from lulc_2024-Edition.xml; see pipeline/data/README.md):
   canopy  = all tree canopy, including canopy over roads/structures/other impervious
   road, bldg, imperv = exposed impervious only (imperv = road + bldg + other impervious + extractive + solar)
   water, lowveg (turf, herbaceous, shrub, herbaceous wetland, crop/pasture), other (barren, bare developed)
 """
+import h3
 import numpy as np
 import pandas as pd
 import rasterio
@@ -34,6 +37,7 @@ LUT[0] = 0
 for g, codes in CODES.items():
     LUT[codes] = GROUPS.index(g)
 WIN = 2048
+BUFFER = 4  # rings; matches the widest neighbor feature (waterNear)
 
 
 def path(year):
@@ -41,7 +45,9 @@ def path(year):
 
 
 def build():
-    grid = read_interim("grid")
+    grid_cells = set(read_interim("grid").h3)
+    halo = {x for c in grid_cells for x in h3.grid_disk(c, BUFFER)} - grid_cells
+    grid = pd.DataFrame({"h3": sorted(grid_cells | halo)})
     n, G = len(grid), len(GROUPS)
     with rasterio.open(path(2021)) as ref:
         crs, transform, W, H = ref.crs, ref.transform, ref.width, ref.height
@@ -69,11 +75,11 @@ def build():
                 counts[k] += np.bincount(hid * G + grp, minlength=n * G)
     for s in srcs.values():
         s.close()
-    out = pd.DataFrame({"h3": grid.h3})
+    out = pd.DataFrame({"h3": grid.h3, "inGrid": grid.h3.isin(grid_cells)})
     for k, c in counts.items():
         c = c.reshape(n, G)
         valid = c[:, 1:].sum(1)
-        frac = c / np.maximum(valid, 1)[:, None]
+        frac = np.where(valid[:, None] > 0, c / np.maximum(valid, 1)[:, None], np.nan)
         out[f"canopy{k}"] = frac[:, 1]
         out[f"road{k}"] = frac[:, 2]
         out[f"bldg{k}"] = frac[:, 3]
@@ -82,12 +88,14 @@ def build():
         out[f"lowveg{k}"] = frac[:, 6]
         if k == "21":
             out["valid_m2"] = valid  # 1 m pixels
+    print(f"cells: {len(grid_cells):,} grid + {len(halo):,} halo ({(out.valid_m2[~out.inGrid] > 0).sum():,} halo cells have raster)")
+    g = out[out.inGrid]
     for k in YEARS:
-        land = out[f"water{k}"] < 0.99
-        w = out.valid_m2 * (1 - out[f"water{k}"])
-        print(f"20{k}: canopy (land-weighted) {np.average(out[f'canopy{k}'][land] / (1 - out[f'water{k}'][land]), weights=w[land]):.3f}"
-              f"  imperv {np.average(out[f'imperv{k}'][land] / (1 - out[f'water{k}'][land]), weights=w[land]):.3f}")
-    print(f"hexes with no raster coverage: {(out.valid_m2 == 0).sum()}; <50% covered: {(out.valid_m2 < 7500).sum()}")
+        land = g[f"water{k}"] < 0.99
+        w = g.valid_m2 * (1 - g[f"water{k}"])
+        print(f"20{k}: canopy (land-weighted) {np.average(g[f'canopy{k}'][land] / (1 - g[f'water{k}'][land]), weights=w[land]):.3f}"
+              f"  imperv {np.average(g[f'imperv{k}'][land] / (1 - g[f'water{k}'][land]), weights=w[land]):.3f}")
+    print(f"grid hexes with no raster coverage: {(g.valid_m2 == 0).sum()}; <50% covered: {(g.valid_m2 < 7500).sum()}")
     return write_interim(out, "landcover")
 
 
