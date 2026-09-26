@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, useReducedMotion } from 'motion/react'
-import { ArrowRight, RotateCcw, X } from 'lucide-react'
+import { ArrowRight, Info, RotateCcw, X } from 'lucide-react'
 import { useStore } from '@/store'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { Slider } from '@/components/ui/slider'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { HOLC_COLORS, toCss } from '@/lib/colors'
 import { featureLabel, fmtF, fmtInt, fmtPct, fmtSignedF, fmtUsd } from '@/lib/format'
 import type { AppData, HolcGrade, NbProps } from '@/lib/types'
@@ -12,10 +13,22 @@ import { nbHexSummary, useDerived, type NbHexSummary } from './derived'
 import { useCurrentUi } from './ui'
 import { useHeatModel, whatIf, type WhatIfResult } from './whatIf'
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+function Fact({ label, info, children }: { label: string; info?: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-white/45">{label}</div>
+      <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-white/45">
+        {label}
+        {info && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" aria-label={info} className="text-white/45 hover:text-white/80">
+                <Info className="size-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{info}</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
       <div className="truncate text-sm tabular-nums text-white/90">{children}</div>
     </div>
   )
@@ -196,7 +209,7 @@ export function NeighborhoodCard() {
           <Fact label="Canopy rank">#{p.rankCanopy} of {n}</Fact>
           <Fact label="Residents">{fmtInt(p.pop)}</Fact>
           <div className="col-span-3">
-            <Fact label="1930s HOLC grade (share of area)">
+            <Fact label="1930s HOLC grade (share of area)" info="Historical context; today’s heat still tracks these grades">
               {summary ? <HolcShare share={summary.holcShare} /> : <span className="text-white/50">—</span>}
             </Fact>
           </div>
