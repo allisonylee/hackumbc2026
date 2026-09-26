@@ -61,3 +61,15 @@ export const NETWORK_SOURCE = {
 export const TYPICAL_OPT_RUN_MS = 50 // plan §11.1: "about 50 ms of CPU"
 export const ASSUMED_CPU_W = 15 // one busy laptop core plus package overhead (assumption)
 export const optimizerWh = (ms: number, watts = ASSUMED_CPU_W) => (ms / 1000) * watts / 3600
+
+/** Short, human duration from minutes. */
+export function fmtDuration(min: number): string {
+  if (!Number.isFinite(min)) return '—'
+  if (min < 1) return `${Math.max(1, Math.round(min * 60))} seconds`
+  if (min < 120) return `${Math.round(min)} minutes`
+  const h = min / 60
+  if (h < 48) return `${h.toFixed(h < 10 ? 1 : 0)} hours`
+  const d = h / 24
+  if (d < 60) return `${Math.round(d)} days`
+  return `${(d / 365).toFixed(1)} years`
+}
