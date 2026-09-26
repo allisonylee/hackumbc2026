@@ -69,6 +69,7 @@ const firstSentences = (t: string, n: number) => (t.match(/[^.!?]+[.!?]+/g) ?? [
 
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'))
     const id = setTimeout(resolve, ms)
     signal?.addEventListener('abort', () => { clearTimeout(id); reject(new DOMException('Aborted', 'AbortError')) }, { once: true })
   })
