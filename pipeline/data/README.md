@@ -113,3 +113,12 @@ Built by `python -m pipeline.run` (Stages 0–1, ~25 s). Every file is keyed by 
 - Heat per hex: 87.3–100.6°F (median 94.7), 13.3°F spread; one hex uncovered.
 - Population: neighborhood 2020 counts (total 585,682) spread by building footprint. Tract totals were tried first and put thousands of residents into industrial areas.
 - Tract 24510250600 (industrial port, 34 residents) has its rates set to missing; its 390 hexes get median vulnerability scores.
+
+## Stage 2 model artifacts (`pipeline/data/interim/model/`, gitignored)
+Built by `python -m pipeline.model.train_heat` (~3 min, 1.2 Wh measured), `python -m pipeline.model.curves` (~1.5 min) and `python -m pipeline.model.figures`.
+- `heat_lgbm.txt`: LightGBM model (11 physical features, monotone: canopy ↓, impervious ↑). `results.json`: tuning grid, CV metrics, baselines, §5.3 checks, PD curve, training energy.
+- `curves_stats.json`: SHAP importance, crown-size sensitivity, share of hexes with flat own-hex curves. `heat_model.json`: pruned dump for the browser (1.53 MB, 0.18 MB gzipped).
+- `figures/pd_canopy.png`, `figures/shap_beeswarm.png`: slide figures.
+- `../curves.parquet`: per hex heatPred (2021), heatPred18, gains, spill, top-3 SHAP.
+
+**First run (2026-09-26):** spatial-CV R² 0.787 (random 0.854; linear 0.658; 3-feature linear 0.535), RMSE 0.77°F. Area-wide canopy slope −0.59°F per +10% (literature 0.5–1.5). The browser evaluator matches Python exactly. Errors cluster regionally (neighbor correlation 0.90): East Baltimore is under-predicted by ~1.3°F, parts of West Baltimore over-predicted by ~1°F.

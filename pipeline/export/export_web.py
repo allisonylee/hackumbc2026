@@ -1,6 +1,12 @@
-"""Export v1: interim tables → web/public/data/*.json (CONTRACTS.md).
+"""Export: interim tables → web/public/data/*.json (CONTRACTS.md).
 
-v1 uses the linear heat model (pipeline/model/linear.py) as a stand-in until LightGBM (Stage 2):
+Model outputs (heatPred, heatResid, gains, spill, shap, the model card) come from one of two sources:
+- v2 (default when Stage 2 has run): the LightGBM model — interim/model/results.json, curves_stats.json,
+  interim/curves.parquet — plus heat_model.json for the browser what-if. See pipeline/model/train_heat.py and
+  curves.py for how each field is computed.
+- v1 (`--linear`, or before Stage 2): the linear stand-in below.
+
+v1 details (pipeline/model/linear.py):
 - heatPred = linear prediction on 2021 land cover; heatResid = heat − prediction on 2018 land cover.
 - shap = exact linear contributions (coef × (x − training mean)) on 2021 features, top 3 by |value|.
 - gains: planting Δ canopy in hex h lowers h by (β_canopy + β_canopyLag3 / 37) × Δ, scaled by a concave factor
@@ -10,9 +16,12 @@ v1 uses the linear heat model (pipeline/model/linear.py) as a stand-in until Lig
 
 Run: python -m pipeline.export.export_web            (rebuilds Stages 0–1 under CodeCarbon, then exports)
      python -m pipeline.export.export_web --no-rebuild
+     python -m pipeline.export.export_web --linear      (force the v1 linear model)
+Stage 2 is run separately first: python -m pipeline.model.train_heat && python -m pipeline.model.curves
 """
 import argparse
 import json
+import shutil
 import time
 from datetime import datetime, timezone
 
@@ -24,7 +33,7 @@ from shapely.ops import unary_union
 
 from pipeline.build.landcover import CODES  # noqa: F401  (documents the class groups used upstream)
 from pipeline.build.species import species_list
-from pipeline.config import CROWN_UNIT_M2, CROWN_UNITS, NMAX, NMAX_UNITS, RAW, SURV_MEAN, WEB_DATA
+from pipeline.config import CROWN_UNIT_M2, CROWN_UNITS, INTERIM, NMAX, NMAX_UNITS, RAW, SURV_MEAN, WEB_DATA
 from pipeline.io import read_interim
 from pipeline.mock.make_mock import round_coords, simplify
 from pipeline.model import linear
@@ -36,8 +45,13 @@ TREE_BENEFITS = {  # USFS Northeast Community Tree Guide, 20-yr street tree; $ �
     "medium": dict(co2LbYr=271, stormGalYr=1014, usdYr=round(76.10 * 1.5)),
     "large": dict(co2LbYr=563, stormGalYr=1624, usdYr=round(150.75 * 1.5)),
 }
-LABELS = {"canopy": "canopy", "imperv": "imperv", "lowveg": "lowveg", "bare": "bare", "canopyLag3": "canopyLag3",
-          "impervLag3": "impervLag3", "waterNear": "waterNear", "distHarborKm": "distHarborKm"}
+MODEL_DIR = INTERIM / "model"
+COMMON_LIMITS = [
+    "Trained on 2018 land cover, applied to 2021 land cover",
+    "Single hot afternoon (2018-08-29)", "Air temperature from a car-mounted traverse",
+    "No night-time model", "No humidity",
+    "Tree survival and crown sizes are assumptions (see assumptions)",
+]
 
 
 def r(x, n=3):
@@ -59,42 +73,99 @@ def gains_for(canopy, units, per_unit):
     return [round(float(v), 4) for v in np.minimum.accumulate(marg)]
 
 
-def build_hexes(lin, sites):
+def linear_outputs(sites):
+    """v1: per-hex outputs and model card from the linear stand-in."""
+    lin, train_kwh, train_g = tracked(linear.fit, "heat_model_linear_v1")
+    so = read_interim("social").set_index("h3")
+    lc = read_interim("landcover").set_index("h3")
+    pop = so["pop"].to_dict()
+    beta_c, beta_l3 = lin["coef"]["canopy"], lin["coef"]["canopyLag3"]
+    own_per_unit = -(beta_c + beta_l3 / 37) * CROWN_UNIT_M2 / AREA  # °F per crown unit before saturation
+    nbr_per_unit = -beta_l3 / 37 * CROWN_UNIT_M2 / AREA
+    units = {c: int(min(g.crown.head(NMAX).sum(), NMAX_UNITS)) for c, g in sites.groupby("h3")}
+    per_hex = {}
+    for i, c in enumerate(lin["h3"]):
+        u = units.get(c, 0)
+        per_hex[c] = dict(
+            heatPred=lin["pred21"][i], heatPred18=lin["pred18"][i],
+            gains=gains_for(float(lc.at[c, "canopy21"]), u, own_per_unit),
+            spill=nbr_per_unit * sum(pop.get(x, 0.0) for x in h3.grid_disk(c, 3) if x != c) if u else 0.0,
+            shap=sorted(zip(linear.FEATS, lin["contrib21"][i]), key=lambda t: -abs(t[1]))[:3],
+        )
+    coef = lin["coef"]
+    total = coef["canopy"] + coef["canopyLag3"]
+    base, mean_can = float(np.mean(lin["pred21"])), lin["mu"]["canopy"]
+    card = dict(
+        features=linear.FEATS, nTrain=lin["nTrain"], r2Random=lin["random"]["r2"], r2Spatial=lin["spatial"]["r2"],
+        rmseSpatial=lin["spatial"]["rmse"], maeSpatial=lin["spatial"]["mae"],
+        baselines=dict(meanRmse=lin["meanRmse"], linearR2Spatial=lin["simple"]["r2"],
+                       linearSlopeFPer10pct=lin["simpleCanopySlopePer10"]),
+        pdFPer10pct=total * 0.1,
+        pdCurve=[[round(float(c), 2), round(base + total * (c - mean_can), 2)] for c in np.linspace(0, 0.8, 17)],
+        importance=sorted(((f, float(np.abs(lin["contrib21"][:, i]).mean())) for i, f in enumerate(linear.FEATS)),
+                          key=lambda t: -t[1]),
+        trainSeconds=lin["trainSeconds"], trainKWh=train_kwh, trainGCO2=train_g,
+        limitations=["Linear model stand-in (export v1); the LightGBM model replaces it in v2"] + COMMON_LIMITS,
+    )
+    return per_hex, card, None
+
+
+def lgbm_outputs():
+    """v2: per-hex outputs and model card from the Stage 2 LightGBM artifacts."""
+    res = json.loads((MODEL_DIR / "results.json").read_text())
+    cst = json.loads((MODEL_DIR / "curves_stats.json").read_text())
+    cv = read_interim("curves")
+    per_hex = {row.h3: dict(heatPred=row.heatPred, heatPred18=row.heatPred18, gains=json.loads(row.gains),
+                            spill=row.spill, shap=json.loads(row.shap)) for row in cv.itertuples(index=False)}
+    sens = cst["sensitivity"]
+    card = dict(
+        features=res["features"], nTrain=res["nTrain"], r2Random=res["random"]["r2"], r2Spatial=res["spatial"]["r2"],
+        rmseSpatial=res["spatial"]["rmse"], maeSpatial=res["spatial"]["mae"],
+        baselines={k: res["baselines"][k] for k in ("meanRmse", "linearR2Spatial", "linearSlopeFPer10pct")},
+        pdFPer10pct=res["pdFPer10pct"], pdCurve=res["pdCurve"], importance=cst["importance"],
+        trainSeconds=res["trainSeconds"], trainKWh=res.get("trainKWh"), trainGCO2=res.get("trainGCO2"),
+        limitations=COMMON_LIMITS + [
+            "Errors cluster by area (neighbor error correlation "
+            f"{res['checks']['residNeighborCorr']:.2f}): East Baltimore runs hotter than predicted and parts of West "
+            "Baltimore cooler, a regional driver the land cover can't see (traverse timing, wind or elevation)",
+            f"Tree-model step functions: {cst['allZeroShare']:.0%} of hexes with sites get no own-hex cooling curve; "
+            "most modeled cooling reaches neighboring blocks (spillover)",
+            "The model's canopy response steepens above ~25% canopy (as Ziter et al. 2019 found above ~40%), but "
+            "the planner's cooling curves assume diminishing returns, so clustering trees may be undervalued",
+            f"Crown-size sensitivity: halving crowns keeps rank correlation {sens['crown_x0.5']['spearman']:.2f} and "
+            f"{sens['crown_x0.5']['top500overlap']:.0%} of the top 500 hexes",
+        ],
+    )
+    return per_hex, card, MODEL_DIR / "heat_model.json"
+
+
+def build_hexes(out_model, sites):
     grid = read_interim("grid")
     lc = read_interim("landcover").set_index("h3")
     ft = read_interim("features").set_index("h3")
     ht = read_interim("heat").set_index("h3")
     so = read_interim("social").set_index("h3")
-    beta_c, beta_l3 = lin["coef"]["canopy"], lin["coef"]["canopyLag3"]
-    own_per_unit = -(beta_c + beta_l3 / 37) * CROWN_UNIT_M2 / AREA  # °F per crown unit before saturation
-    nbr_per_unit = -beta_l3 / 37 * CROWN_UNIT_M2 / AREA
-    pop = so["pop"].to_dict()
-    pred21 = dict(zip(lin["h3"], lin["pred21"]))
-    pred18 = dict(zip(lin["h3"], lin["pred18"]))
-    contrib = dict(zip(lin["h3"], lin["contrib21"]))
     heat_med = float(np.nanmedian(ht.heat))
     by_hex = sites.groupby("h3")
     out = []
     for c, nb in zip(grid.h3, grid.nb):
         s = by_hex.get_group(c) if c in by_hex.groups else sites.iloc[:0]
         cap = min(len(s), NMAX)
-        units = int(min(s.crown.head(cap).sum(), NMAX_UNITS))
+        m = out_model[c]
         canopy = float(lc.at[c, "canopy21"])
         heat = ht.at[c, "heat"]
         heat = None if not np.isfinite(heat) else float(heat)
-        spill = nbr_per_unit * sum(pop.get(x, 0.0) for x in h3.grid_disk(c, 3) if x != c) if cap else 0.0
-        top = sorted(zip(linear.FEATS, contrib[c]), key=lambda t: -abs(t[1]))[:3]
         so_row = so.loc[c]
         out.append(dict(
             h3=c, nb=nb, canopy=r(canopy), canopy13=r(lc.at[c, "canopy13"]), imperv=r(lc.at[c, "imperv21"]),
             bldg=r(lc.at[c, "bldg21"]), road=r(lc.at[c, "road21"]), lowveg=r(lc.at[c, "lowveg21"]),
             waterNear=r(ft.at[c, "waterNear_21"]),
-            heat=r(heat), heatAnom=r(float(ht.at[c, "heatFill"]) - heat_med), heatPred=r(pred21[c]),
-            heatResid=None if heat is None else r(heat - pred18[c]), spill=r(max(0.0, spill)),
+            heat=r(heat), heatAnom=r(float(ht.at[c, "heatFill"]) - heat_med), heatPred=r(m["heatPred"]),
+            heatResid=None if heat is None else r(heat - m["heatPred18"]), spill=r(max(0.0, m["spill"]) if cap else 0.0),
             income=None if pd.isna(so_row.income) else int(round(so_row.income)), poverty=r(so_row.poverty),
             poc=r(so_row.poc), asthma=r(so_row.asthma, 1), svi=r(so_row.svi), holc=s_or_none(so_row.holc),
             pop=r(so_row["pop"], 1), vulnEq=r(so_row.vulnEq), vulnHealth=r(so_row.vulnHealth), flood=bool(so_row.flood),
-            cap=cap, gains=gains_for(canopy, units, own_per_unit), shap=[[LABELS[f], r(v)] for f, v in top],
+            cap=cap, gains=[round(float(g), 4) for g in m["gains"]] if cap else [], shap=[[f, r(v)] for f, v in m["shap"]],
         ))
     return out, heat_med
 
@@ -152,7 +223,7 @@ def static_layers(nb_raw, grid_cells):
     return holc, city, trees, cooling
 
 
-def build_stats(lin, hexes, sites, nbfc, heat_med):
+def build_stats(card, hexes, sites, nbfc, heat_med):
     nb = pd.DataFrame([f["properties"] for f in nbfc["features"]])
     hx = pd.DataFrame(hexes)
     lc = read_interim("landcover").set_index("h3")
@@ -177,14 +248,6 @@ def build_stats(lin, hexes, sites, nbfc, heat_med):
     land = hx.land.to_numpy()
     water = np.array([float(lc.at[c, "water21"]) for c in hx.h3])
     city_canopy = float(np.average(hx.canopy / np.maximum(1 - water, 1e-9), weights=land))
-    coef = lin["coef"]
-    total_slope = (coef["canopy"] + coef["canopyLag3"]) * 0.1
-    grid_c = np.linspace(0, 0.8, 17)
-    base = np.mean(lin["pred21"])
-    mean_can = lin["mu"]["canopy"]
-    pd_curve = [[round(float(c), 2), r(base + (coef["canopy"] + coef["canopyLag3"]) * (c - mean_can), 2)] for c in grid_c]
-    importance = sorted(((f, float(np.abs(lin["contrib21"][:, i]).mean())) for i, f in enumerate(linear.FEATS)),
-                        key=lambda t: -t[1])
     surv = pd.DataFrame(sites)
     dead = {}
     for f in json.load(open(RAW / "trees" / "trees_all_other.geojson"))["features"]:
@@ -200,20 +263,14 @@ def build_stats(lin, hexes, sites, nbfc, heat_med):
         byHolc=by_holc,
         model=dict(
             target="Afternoon air temperature (°F), NOAA Heat Watch", date="2018-08-29",
-            features=linear.FEATS, nTrain=lin["nTrain"],
-            r2Random=r(lin["random"]["r2"]), r2Spatial=r(lin["spatial"]["r2"]),
-            rmseSpatial=r(lin["spatial"]["rmse"]), maeSpatial=r(lin["spatial"]["mae"]),
-            baselines=dict(meanRmse=r(lin["meanRmse"]), linearR2Spatial=r(lin["simple"]["r2"]),
-                           linearSlopeFPer10pct=r(lin["simpleCanopySlopePer10"])),
-            pdFPer10pct=r(total_slope), pdCurve=pd_curve, importance=[[f, r(v)] for f, v in importance],
-            trainSeconds=r(lin["trainSeconds"], 4), trainWh=r(lin["trainKWh"] * 1000, 6),
-            limitations=[
-                "Export v1: a linear model stands in until the LightGBM model (Stage 2) is trained",
-                "Trained on 2018 land cover, applied to 2021 land cover",
-                "Single hot afternoon (2018-08-29)", "Air temperature from a car-mounted traverse",
-                "No night-time model", "No humidity",
-                "Tree survival and crown sizes are assumptions (see assumptions)",
-            ],
+            features=card["features"], nTrain=card["nTrain"],
+            r2Random=r(card["r2Random"]), r2Spatial=r(card["r2Spatial"]),
+            rmseSpatial=r(card["rmseSpatial"]), maeSpatial=r(card["maeSpatial"]),
+            baselines={k: r(v) for k, v in card["baselines"].items()},
+            pdFPer10pct=r(card["pdFPer10pct"]), pdCurve=[[c, r(v, 2)] for c, v in card["pdCurve"]],
+            importance=[[f, r(v)] for f, v in card["importance"]],
+            trainSeconds=r(card["trainSeconds"], 4), trainWh=r(card["trainKWh"] * 1000, 6),
+            limitations=card["limitations"],
         ),
         literature=dict(zaerpour_C_per10=0.8, meta_C_per10=0.3),
         treeBenefits=TREE_BENEFITS,
@@ -240,18 +297,28 @@ def tracked(fn, name):
     return res, d.energy_consumed, d.emissions * 1000
 
 
-def export(pipeline_kwh=None, pipeline_g=None, measured=None):
+def have_stage2():
+    return all(p.exists() for p in (MODEL_DIR / "results.json", MODEL_DIR / "curves_stats.json",
+                                    MODEL_DIR / "heat_model.json", INTERIM / "curves.parquet"))
+
+
+def export(pipeline_kwh=None, pipeline_g=None, measured=None, use_linear=False):
     t0 = time.time()
-    lin, train_kwh, train_g = tracked(linear.fit, "heat_model_linear_v1")
     sites = read_interim("sites")
-    hexes, heat_med = build_hexes(lin, sites)
+    use_linear = use_linear or not have_stage2()
+    per_hex, card, browser_model = linear_outputs(sites) if use_linear else lgbm_outputs()
+    print(f"model outputs: {'v1 linear' if use_linear else 'v2 LightGBM'}")
+    hexes, heat_med = build_hexes(per_hex, sites)
     site_rows = build_sites(sites)
     nbfc, nb_raw = build_neighborhoods()
     holc, city, trees, cooling = static_layers(nb_raw, {h["h3"] for h in hexes})
-    lin["trainKWh"] = train_kwh
-    stats = build_stats(lin, hexes, site_rows, nbfc, heat_med)
+    stats = build_stats(card, hexes, site_rows, nbfc, heat_med)
+    prev = WEB_DATA / "footprint.json"
+    if pipeline_kwh is None and prev.exists():  # --no-rebuild: keep the last measured pipeline run
+        old = json.loads(prev.read_text())
+        pipeline_kwh, pipeline_g, measured = old.get("pipelineKWh"), old.get("pipelineGCO2"), old.get("measuredAt")
     footprint = dict(
-        pipelineKWh=r(pipeline_kwh, 6), pipelineGCO2=r(pipeline_g, 3), trainKWh=r(train_kwh, 8), trainGCO2=r(train_g, 5),
+        pipelineKWh=r(pipeline_kwh, 6), pipelineGCO2=r(pipeline_g, 3), trainKWh=r(card["trainKWh"], 8), trainGCO2=r(card["trainGCO2"], 5),
         region="Maryland, USA", measuredAt=measured or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         devAiNote="Not estimated yet.", cloudRefs=[],
     )
@@ -265,20 +332,27 @@ def export(pipeline_kwh=None, pipeline_g=None, measured=None):
         path = WEB_DATA / name
         path.write_text(json.dumps(obj, separators=(",", ":"), ensure_ascii=False, allow_nan=False))
         print(f"{name:24s} {path.stat().st_size / 1e6:6.2f} MB")
+    model_path = WEB_DATA / "heat_model.json"
+    if browser_model:
+        shutil.copyfile(browser_model, model_path)
+        print(f"{'heat_model.json':24s} {model_path.stat().st_size / 1e6:6.2f} MB")
+    elif model_path.exists():
+        model_path.unlink()  # a stale LightGBM file would disagree with v1 outputs
     print(f"export: {len(hexes):,} hexes, {len(site_rows):,} sites in {time.time() - t0:.1f}s")
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-rebuild", action="store_true", help="export from existing interim files, no CodeCarbon")
+    ap.add_argument("--linear", action="store_true", help="use the v1 linear model even if Stage 2 has run")
     a = ap.parse_args()
     if a.no_rebuild:
-        export()
+        export(use_linear=a.linear)
         return
     from pipeline import run
 
     _, kwh, g = tracked(lambda: [stage() for stage in run.STAGES.values()], "pipeline_stages_0_1")
-    export(pipeline_kwh=kwh, pipeline_g=g)
+    export(pipeline_kwh=kwh, pipeline_g=g, use_linear=a.linear)
 
 
 if __name__ == "__main__":
