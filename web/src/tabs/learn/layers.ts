@@ -18,8 +18,8 @@ type HexMode = { color: 'heat' | 'canopy' | 'vision'; alpha: number; height: 'he
 
 const HEX_MODES: Record<Beat, HexMode> = {
   hook: { color: 'heat', alpha: 225, height: 'heat' },
-  history: { color: 'heat', alpha: 70, height: 'heat' },
-  echo: { color: 'heat', alpha: 225, height: 'heat' },
+  history: { color: 'heat', alpha: 0, height: 'flat' },
+  echo: { color: 'heat', alpha: 0, height: 'flat' },
   canopy: { color: 'canopy', alpha: 225, height: 'heat' },
   cost: { color: 'heat', alpha: 80, height: 'flat' },
   gap: { color: 'canopy', alpha: 200, height: 'flat' },
@@ -34,6 +34,8 @@ const rgba = (c: RGB | readonly number[], a: number): RGBA => [c[0], c[1], c[2],
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 const CLEAR: RGBA = [0, 0, 0, 0]
 const HOLC_D_LINE: RGBA = [...HOLC_COLORS.D, 255] as RGBA
+/** Beats that show the full A–D HOLC shading (with the hexes hidden). */
+const HOLC_SHADED = new Set<Beat>(['history', 'echo'])
 
 type TurnSite = { s: Site; inR: boolean; inO: boolean }
 
@@ -144,19 +146,19 @@ export function useLearnLayers(active: boolean): TabLayers {
       filled: true,
       stroked: true,
       lineWidthUnits: 'pixels',
-      getLineWidth: (f) => (f.properties.grade === 'D' && (beat === 'echo' || beat === 'canopy') ? 2.5 : 1.25),
+      getLineWidth: (f) => (f.properties.grade === 'D' && beat === 'canopy' ? 2.5 : 1.25),
       getFillColor: (f) => {
         const g = f.properties.grade
         if (!g) return CLEAR
-        if (beat === 'history') return rgba(HOLC_COLORS[g], 150)
-        if ((beat === 'echo' || beat === 'canopy') && g === 'D') return rgba(HOLC_COLORS.D, 35)
+        if (HOLC_SHADED.has(beat)) return rgba(HOLC_COLORS[g], 150)
+        if (beat === 'canopy' && g === 'D') return rgba(HOLC_COLORS.D, 35)
         return CLEAR
       },
       getLineColor: (f) => {
         const g = f.properties.grade
         if (!g) return CLEAR
-        if (beat === 'history') return rgba(HOLC_COLORS[g], 230)
-        if ((beat === 'echo' || beat === 'canopy') && g === 'D') return HOLC_D_LINE
+        if (HOLC_SHADED.has(beat)) return rgba(HOLC_COLORS[g], 230)
+        if (beat === 'canopy' && g === 'D') return HOLC_D_LINE
         return CLEAR
       },
       updateTriggers: { getFillColor: beat, getLineColor: beat, getLineWidth: beat },
