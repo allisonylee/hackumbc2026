@@ -44,6 +44,7 @@ export const BRAND = {
   equity: hex('#a78bfa'),
   cool: hex('#2dd4bf'),
   random: hex('#fb923c'),
+  lowCanopy: hex('#fbbf24'),
 }
 
 /** Normalize v into [0,1] over [lo, hi]. */

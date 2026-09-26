@@ -184,7 +184,7 @@ export function useLearnLayers(active: boolean): TabLayers {
           if (base.hot.has(p.name)) return rgba(BRAND.heat, 120)
           if (base.cool.has(p.name)) return rgba(BRAND.cool, 100)
         }
-        if (beat === 'gap' && p.canopy < 0.2) return [251, 191, 36, 40]
+        if (beat === 'gap' && p.canopy < 0.2) return rgba(BRAND.lowCanopy, 40)
         if (beat === 'help' && p.name === selNb) return rgba(BRAND.equity, 35)
         return CLEAR
       },
@@ -194,7 +194,7 @@ export function useLearnLayers(active: boolean): TabLayers {
           if (base.hot.has(p.name)) return rgba(BRAND.heat, 255)
           if (base.cool.has(p.name)) return rgba(BRAND.cool, 230)
         }
-        if (beat === 'gap' && p.canopy < 0.2) return [251, 191, 36, 220]
+        if (beat === 'gap' && p.canopy < 0.2) return rgba(BRAND.lowCanopy, 220)
         if (beat === 'help' && p.name === selNb) return rgba(BRAND.equity, 255)
         return CLEAR
       },

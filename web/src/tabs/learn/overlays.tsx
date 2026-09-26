@@ -213,6 +213,14 @@ export function GapBar({ active }: OverlayProps) {
           </div>
         ))}
       </div>
+      <div className="flex items-center gap-2 text-xs text-white/75">
+        <span
+          className="size-3 rounded-sm border-2"
+          style={{ borderColor: toCss(BRAND.lowCanopy), background: toCss(BRAND.lowCanopy, 0.15) }}
+          aria-hidden
+        />
+        Neighborhoods under 20% canopy
+      </div>
     </div>
   )
 }
