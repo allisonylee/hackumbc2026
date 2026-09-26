@@ -12,6 +12,7 @@ def _list(name: str, default: str) -> list[str]:
 class Settings:
     ollama_url: str = field(default_factory=lambda: os.getenv("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/"))
     model: str = field(default_factory=lambda: os.getenv("MODEL", "qwen3.5:2b"))
+    embed_model: str = field(default_factory=lambda: os.getenv("EMBED_MODEL", "embeddinggemma"))
     region: str = field(default_factory=lambda: os.getenv("REGION_LABEL", "local"))
     # Vite dev (5173) and `vite preview` (4173) by default; add the deployed site's origin in production.
     allowed_origins: list[str] = field(
