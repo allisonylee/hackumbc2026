@@ -184,6 +184,8 @@ export function useCurrentLayers(active: boolean): TabLayers {
         getFillColor: (f) => (bivariate ? [...BIVARIATE[f.properties[bivKey]] ?? BIVARIATE[0], 205] : [0, 0, 0, 0]) as RGBA,
         transitions: reduce ? undefined : { getFillColor: 800 },
         updateTriggers: { getFillColor: [bivariate] },
+        // Invisible (pick-only) outside bivariate mode: don't let it write depth under the flat hexes.
+        parameters: { depthWriteEnabled: false },
         pickable: true,
         onHover: (info: PickingInfo<NbFeature>) => {
           setHoveredIfChanged(info.object ? { nb: info.object.properties.name } : {})
