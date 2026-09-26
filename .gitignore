@@ -1,5 +1,5 @@
 .DS_Store
-pipeline/data/raw/
+pipeline/data/raw
 pipeline/data/interim/
 node_modules/
 dist/
@@ -9,3 +9,5 @@ __pycache__/
 .env
 emissions.csv
 /planning
+.claude/settings.local.json
+*.tsbuildinfo

@@ -1,0 +1,14 @@
+geopandas
+shapely
+pyproj
+rasterio
+rasterstats
+h3>=4
+pandas
+numpy
+requests
+lightgbm
+scikit-learn
+shap
+codecarbon
+rapidfuzz
