@@ -1,64 +1,91 @@
 import { useEffect, useState } from 'react'
-import { Map, useControl } from 'react-map-gl/maplibre'
-import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox'
-import { H3HexagonLayer } from '@deck.gl/geo-layers'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import maplibregl from '@/lib/maplibre'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'motion/react'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { LoadingScreen } from '@/components/LoadingScreen'
+import { NavBar } from '@/components/NavBar'
+import { MapCanvas } from '@/map/MapCanvas'
+import { loadData } from '@/lib/data'
+import { useStore, type Tab } from '@/store'
+import CurrentTab from '@/tabs/current/CurrentTab'
+import PlanTab from '@/tabs/plan/PlanTab'
+import LearnTab from '@/tabs/learn/LearnTab'
+import ChatDrawer from '@/features/chat/ChatDrawer'
+import FootprintDialog from '@/features/footprint/FootprintDialog'
+import EvaluationDialog from '@/features/footprint/EvaluationDialog'
 
-// Hello-map placeholder from repo setup (§2). Replaced by the real app shell in §6.
-
-type Hex = { h3: string; nb: string; canopy: number; heatAnom: number }
-
-const FILES = [
-  'hexes.json', 'sites.json', 'neighborhoods.geojson', 'holc.geojson',
-  'stats.json', 'species.json', 'footprint.json',
-]
-
-function DeckGLOverlay(props: MapboxOverlayProps) {
-  const overlay = useControl(() => new MapboxOverlay(props))
-  overlay.setProps(props)
+/** Keeps store.tab in sync with the URL. */
+function RouteSync() {
+  const { pathname } = useLocation()
+  const setTab = useStore((s) => s.setTab)
+  useEffect(() => {
+    const t = pathname.split('/')[1] as Tab
+    if (t === 'current' || t === 'plan' || t === 'learn') setTab(t)
+  }, [pathname, setTab])
   return null
 }
 
+function TabPanels() {
+  const location = useLocation()
+  const tab = location.pathname.split('/')[1]
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={tab}
+        className="pointer-events-none absolute inset-0 z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+      >
+        <Routes location={location}>
+          <Route path="/" element={<Navigate to="/current" replace />} />
+          <Route path="/current" element={<CurrentTab />} />
+          <Route path="/plan" element={<PlanTab />} />
+          <Route path="/learn" element={<LearnTab />} />
+          <Route path="*" element={<Navigate to="/current" replace />} />
+        </Routes>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
 export default function App() {
-  const [hexes, setHexes] = useState<Hex[]>([])
-  const [status, setStatus] = useState('Loading data…')
+  const data = useStore((s) => s.data)
+  const setData = useStore((s) => s.setData)
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all(FILES.map((f) => fetch(`/data/${f}`).then((r) => {
-      if (!r.ok) throw new Error(`${f}: HTTP ${r.status}`)
-      return r.json()
-    })))
-      .then(([hx, sites]) => {
-        setHexes(hx)
-        setStatus(`${hx.length.toLocaleString()} hexes · ${sites.length.toLocaleString()} sites`)
-      })
-      .catch((e) => setStatus(`Data failed to load: ${e.message}`))
-  }, [])
-
-  const layers = [
-    new H3HexagonLayer<Hex>({
-      id: 'hex', data: hexes, getHexagon: (d) => d.h3, extruded: true, coverage: 0.92,
-      elevationScale: 40, getElevation: (d) => Math.max(0, d.heatAnom + 5),
-      getFillColor: (d) => [255 * (1 - d.canopy), 80 + 175 * d.canopy, 90, 220],
-      pickable: true, autoHighlight: true,
-    }),
-  ]
+    loadData((done, total) => setProgress(done / total))
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+  }, [setData])
 
   return (
-    <div className="fixed inset-0">
-      <Map
-        initialViewState={{ longitude: -76.615, latitude: 39.3, zoom: 11.3, pitch: 50, bearing: -15 }}
-        maxPitch={75}
-        mapLib={maplibregl}
-        mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-      >
-        <DeckGLOverlay layers={layers} interleaved />
-      </Map>
-      <div className="absolute top-4 left-4 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white backdrop-blur-md">
-        <div className="font-semibold">Baltimore Tree Planner</div>
-        <div className="text-white/70">{status}</div>
-      </div>
-    </div>
+    <BrowserRouter>
+      <TooltipProvider delayDuration={200}>
+        <RouteSync />
+        <div className="relative h-full w-full overflow-hidden bg-[#0b0f0e] text-white">
+          {data && <MapCanvas />}
+          {data && (
+            <>
+              <NavBar />
+              <TabPanels />
+              <ChatDrawer />
+              <FootprintDialog />
+              <EvaluationDialog />
+            </>
+          )}
+          <AnimatePresence>
+            {!data && (
+              <motion.div key="loading" exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+                <LoadingScreen progress={progress} error={error} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </TooltipProvider>
+    </BrowserRouter>
   )
 }

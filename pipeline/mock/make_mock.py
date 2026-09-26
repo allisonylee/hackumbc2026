@@ -31,25 +31,14 @@ def round_coords(coords, n=5):
     return [round_coords(c, n) for c in coords]
 
 
-def decimate_ring(ring, keep=4):
-    """Crude simplification for mock output: keep every `keep`-th vertex, stay closed."""
-    if len(ring) <= 16:
-        return ring
-    out = ring[::keep]
-    if out[-1] != ring[-1]:
-        out.append(ring[-1])
+def simplify(geom, tol=0.00008):
+    """Topology-preserving simplify + 5-decimal rounding; always returns valid (Multi)Polygon GeoJSON."""
+    g = shape(geom).simplify(tol, preserve_topology=True)
+    if not g.is_valid:
+        g = g.buffer(0)
+    out = json.loads(json.dumps(mapping(g)))
+    out["coordinates"] = round_coords(out["coordinates"])
     return out
-
-
-def simplify(geom):
-    if geom["type"] == "Polygon":
-        polys = [geom["coordinates"]]
-    else:
-        polys = geom["coordinates"]
-    polys = [[round_coords(decimate_ring(ring)) for ring in poly] for poly in polys]
-    if geom["type"] == "Polygon":
-        return {"type": "Polygon", "coordinates": polys[0]}
-    return {"type": "MultiPolygon", "coordinates": polys}
 
 
 def cells_of(geom):
@@ -238,7 +227,7 @@ def main():
     # small buffer out/in closes slivers between neighborhood polygons
     city_geom = unary_union([shape(f["geometry"]).buffer(0) for f in nb_raw["features"]]).buffer(0.0001).buffer(-0.0001).simplify(0.0001)
     city = {"type": "FeatureCollection", "features": [
-        {"type": "Feature", "properties": {"name": "Baltimore"}, "geometry": simplify(json.loads(json.dumps(mapping(city_geom))))}]}
+        {"type": "Feature", "properties": {"name": "Baltimore"}, "geometry": simplify(mapping(city_geom))}]}
 
     # live trees (real), limited to the mock hex area so the mock stays small
     trees_raw = json.load(open(RAW / "trees" / "trees_all_other.geojson"))

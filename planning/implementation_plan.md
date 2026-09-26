@@ -172,11 +172,14 @@ type Hex = {
   svi: number | null;      // 0–1 CDC SVI overall percentile
   holc: "A"|"B"|"C"|"D"|null;
   pop: number;             // estimated residents in hex
+  expo: number;            // 0–1 outdoor exposure: bus stops, schools, cooling-center approaches (§4.6)
+  people: number;          // people exposed = pop + EXPO_W × expo × P90(pop); used by the optimizer
   vulnEq: number;          // 0–1 equity score (poverty/income/poc composite)
   vulnHealth: number;      // 0–1 health score (asthma/svi composite)
   flood: boolean;          // intersects FEMA floodplain (optional)
   cap: number;             // # candidate sites used (≤ NMAX)
-  gains: number[];         // length cap; marginal °F cooling of the 1st..cap-th tree, non-increasing, ≥0
+  gains: number[];         // marginal °F cooling of each successive CROWN_UNIT (25 m²) of new canopy;
+                           // length = total crown units of the hex's sites (≤ NMAX_UNITS), non-increasing, ≥0
   shap: [string, number][];// top 3 [feature, contribution °F]
 };
 ```
@@ -194,9 +197,12 @@ type Site = {
   space: string | null;    // SPACE_TYPE (e.g., "Tree Lawn")
   nb: string;
   species: string;         // suggested species (rule-based)
+  size: "small" | "medium" | "large"; // mature size class of the suggested species
+  crown: 1 | 2 | 3;        // crown units at ~20 yrs (small 25 m², medium 50 m², large 75 m²)
+  surv: number;            // 0–1 expected establishment survival (§4.5, an assumption table)
 };
 ```
-Within each hex, sites are **sorted cheapest first**. The optimizer uses the k-th site for the k-th tree.
+Within each hex, sites are **sorted by expected canopy per dollar** (`crown × surv / cost`, descending; ties cheapest first). The optimizer uses the k-th site for the k-th tree, and the k-th tree uses the next `crown` entries of the hex's `gains`.
 
 ### `neighborhoods.geojson`: 279 features, simplified (mapshaper 8%)
 Properties:
@@ -221,7 +227,9 @@ Properties:
            importance: [feature, meanAbsShapF][],
            trainSeconds, trainWh, limitations: string[] },
   literature: { zaerpour_C_per10: 0.8, meta_C_per10: 0.3 },
-  treeBenefits: { small: {...}, medium: {...}, large: {...} } // USFS NE guide values
+  treeBenefits: { small: {...}, medium: {...}, large: {...} }, // USFS NE guide values
+  assumptions: { crownM2: { small, medium, large }, survMean, survBySpace: [space, surv][],
+                 expoW, deadShareBySpace: [space, share][] }   // shown in the model card
 }
 ```
 
@@ -254,8 +262,9 @@ type Params = {
 type Result = {
   siteIds: string[];              // in selection order (rank → sprout delay)
   perHex: Record<string, number>; // h3 → trees
-  impact: { trees, spent, coolingPersonF, avgFTargeted, residents, shareLowIncome,
-            shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
+  impact: { trees, expectedSurviving, spent, coolingPersonF, avgFTargeted, residents,
+            peopleExposed, shareLowIncome, shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
+            // all benefits are survival-weighted expected values
 };
 allocate(p: Params): Result
 pareto(p: Params, steps = 21): { quota, cooling, shareLowIncome }[]
@@ -285,7 +294,10 @@ Response: NDJSON stream, one JSON object per line:
 - lightgbm, scikit-learn, shap, codecarbon, rapidfuzz.
 
 ### 4.1 `config.py`
-- `BBOX = (-76.72, 39.19, -76.52, 39.38)`, `H3_RES = 10`, `NMAX = 30`, `CROWN_M2 = 50`.
+- `BBOX = (-76.72, 39.19, -76.52, 39.38)`, `H3_RES = 10`, `NMAX = 30`.
+- `CROWN_UNIT_M2 = 25`, `CROWN_UNITS = {"small": 1, "medium": 2, "large": 3}` (≈25/50/75 m² crowns at ~20 years), `NMAX_UNITS = 90`.
+- `SURV_MEAN = 0.66` (research.md: ~66% street-tree survival), plus the `SURV` table in §4.5.
+- `EXPO_W = 0.5`: a hex with maximum outdoor exposure and no residents counts as half of a dense (90th-percentile) residential hex.
 - `COST = {"pit": 1000, "potential": 2000}`.
 - Paths for `data/raw`, `data/interim` and `web/public/data`.
 - `EQUAL_AREA_CRS = "EPSG:26985"` (Maryland State Plane, meters).
@@ -325,7 +337,11 @@ The endpoints are in research.md §2.
   - CDC SVI 2022 FeatureServer, `where=STCNTY='24510'` → `RPL_THEMES`.
 - [ ] **`holc.py`:** download the Mapping Inequality JSON, filter `city == "Baltimore"`, save.
 - [ ] **`tes.py` (optional):** Tree Equity Score block groups for Baltimore, used as a baseline ranking.
-- [ ] **Optional:** FEMA floodplain, cooling centers, parks (to exclude).
+- [ ] **`exposure.py`** (needed for the exposure term, §4.6). Cooling centers are already in `raw/context/cooling_centers.geojson`. Fetch:
+  - MDOT MTA bus stops (Maryland open data / iMAP ArcGIS). Keep average weekday boardings if the layer has them; otherwise use stop counts. Add the endpoint to research.md §2.
+  - Baltimore City public school locations (Open Baltimore). Add the endpoint to research.md §2.
+  - If either fetch fails, build `expo` from what you have; cooling centers alone are enough for a first version.
+- [ ] **Optional:** FEMA floodplain, parks (to exclude).
 
 ### 4.4 `build/grid.py`: the H3 grid
 ```python
@@ -348,11 +364,30 @@ Expect about 14–16k cells.
   - Drop sites whose hex isn't in the grid.
   - Set cost per type and parse `util` from `UTILITIES` (e.g. "Yes"/"No"; check the actual values).
   - Assign `species` with a rule: `util` or width < 4 ft → small; width 4–6 → medium; otherwise large. Choose from `species.json` by rotating through the matching species for diversity.
-- [ ] **`cap`:** `min(#sites in hex, NMAX)`. Sort sites by cost within each hex.
+  - **Potential pits:** ~21k of them have `SPACEWIDTH = "0"` because the well hasn't been cut yet. Treat them as a standard 5 ft well, not 0 ft, or every one becomes a small tree.
+  - `size` = the species' size class; `crown = CROWN_UNITS[size]`.
+- [ ] **Survival `surv`** (an assumption table; say so in the model card):
+
+  | Site | Base survival |
+  |---|---|
+  | Width ≥ 6 ft, or Open/Unrestricted | 0.75 |
+  | Width 4–5 ft (incl. potential pits at 5 ft) | 0.65 |
+  | Width < 4 ft or unknown | 0.55 |
+  | Median/Island | × 0.9 (traffic, road salt) |
+
+  - Rescale so the mean over all candidate sites equals `SURV_MEAN`. Save the table to `stats.json.assumptions`.
+  - **Sanity check only, not calibration:** the dead/stump share by `SPACE_TYPE` in `trees_all_other` is 6–12% and doesn't separate space types much. That's survivorship bias: dead street trees get removed and become vacant sites. Save the shares to `stats.json.assumptions.deadShareBySpace` and note the bias.
+- [ ] **`cap`:** `min(#sites in hex, NMAX)`. Sort sites within each hex by `crown × surv / cost` descending (ties cheapest first).
 
 ### 4.6 `build/social.py`
 - [ ] Spatial-join each hex centroid to its tract → `income`, `poverty`, `poc`, `asthma`, `svi`.
 - [ ] `pop = tract_pop × (hex_area / tract_area)`. Optional improvement: weight by non-canopy, non-water fraction.
+- [ ] **Outdoor exposure** (`pop` counts only people at home, but afternoon heat hits people waiting and walking):
+  - `bus` = weekday boardings (or stop count) in `grid_disk(h, 1)`, then `norm(log1p(bus))`;
+  - `school` = 1 if a school is within `grid_disk(h, 2)` (~250 m);
+  - `coolNear` = 1 if a cooling center is within `grid_disk(h, 4)` (~500 m walk);
+  - `expo = mean(bus, school, coolNear)` over the parts you have, 0–1;
+  - `people = pop + EXPO_W × expo × P90(pop)`. Save `EXPO_W` to `stats.json.assumptions`.
 - [ ] Centroid in a HOLC polygon → `holc`. Centroid in a neighborhood → `nb`.
 - [ ] Composite scores, min-max normalized across hexes:
   - `vulnEq = mean(norm(poverty), 1 − norm(income), norm(poc))`
@@ -380,7 +415,8 @@ Also Session B. **This is a core feature and is never cut.** The model is what t
 - **Target (y):** mean afternoon air temperature (°F) from NOAA Heat Watch, 2018-08-29. It measures what people actually feel.
   - Optional second model: Landsat summer land surface temperature, as a robustness check.
 - **Model:** LightGBM gradient-boosted trees with a **monotone constraint**: more canopy can never predict more heat. It's small, trains in seconds on a laptop CPU, and needs no GPU.
-- **How it's used:** as a counterfactual. Add n trees' crown area to a hex, re-predict, and the difference is the cooling. SHAP explains each prediction.
+- **How it's used:** as a counterfactual. Add crown area to a hex, re-predict, and the difference is the cooling. SHAP explains each prediction.
+- **In one paragraph:** the model learns, from ~15k hexes, how afternoon air temperature depends on a block's land cover and its surroundings. Training uses only physical features, so it answers "what would happen if this block had more canopy?" rather than "which kinds of neighborhoods are hot?". For each hex, we add canopy 25 m² at a time and record how much the prediction drops. That list of marginal drops (`gains`) is the only thing the optimizer takes from the model. It is hex-specific: a paved, treeless block far from water gets big early gains, while a leafy block gets little.
 
 ### 5.1 Feature engineering (`build/features.py` additions)
 | Feature | Source | Why |
@@ -429,29 +465,33 @@ Also Session B. **This is a core feature and is never cut.** The model is what t
 - [ ] **Residual map:** plot `heatResid` by hex. Large clustered residuals mean a missing driver, often water or elevation. Note them in the model card as known limits.
 - [ ] **Sanity spot-checks:** the downtown/industrial hexes the model predicts hottest should match the observed hottest; leafy areas like Roland Park or Guilford should be predicted coolest.
 
-### 5.4 `model/curves.py`: counterfactual cooling per tree (vectorized)
+### 5.4 `model/curves.py`: counterfactual cooling per crown unit (vectorized)
+The curve is measured per **crown unit** (25 m² of new canopy), not per tree, so trees of different sizes share one curve: a small tree uses the next 1 entry of `gains`, a medium tree the next 2, a large tree the next 3. This keeps diminishing returns correct whatever mix of sizes lands in a hex, and it still works when the "avoid power lines" filter removes some sites.
+
 Adding canopy to a hex also changes its neighbors' `canopyLag1`/`canopyLag3` features. The first version below changes only the hex's own `canopy`. The spillover step afterward adds the neighbor effect.
 ```python
 AREA = h3.average_hexagon_area(10, unit="m^2")        # ≈15,047
 base = model.predict(X)
-cum = np.zeros((len(X), NMAX))
-for n in range(1, NMAX + 1):
+cum = np.zeros((len(X), NMAX_UNITS))
+for n in range(1, NMAX_UNITS + 1):                     # n = crown units added
     Xn = X.copy()
-    Xn["canopy"] = np.minimum(X["canopy"] + n * CROWN_M2 / AREA, 1.0)
+    Xn["canopy"] = np.minimum(X["canopy"] + n * CROWN_UNIT_M2 / AREA, 1.0)
     cum[:, n-1] = base - model.predict(Xn)             # cumulative °F cooling
 cum = np.maximum.accumulate(np.clip(cum, 0, None), axis=1)
 marg = np.diff(np.concatenate([np.zeros((len(X),1)), cum], axis=1), axis=1)
 # enforce non-increasing marginals (diminishing returns): running min from the left
 marg = np.minimum.accumulate(marg, axis=1)
-hexes["gains"] = [m[:c].round(4).tolist() for m, c in zip(marg, hexes["cap"])]
+units = sites.groupby("h3")["crown"].apply(lambda c: min(c.head(NMAX).sum(), NMAX_UNITS))
+hexes["gains"] = [m[:int(units.get(h, 0))].round(4).tolist() for m, h in zip(marg, hexes["h3"])]
 ```
 - [ ] **Watch for step functions.** Tree models are piecewise constant, so marginals may be mostly zero with occasional jumps. If more than half of the hexes with sites get all-zero gains, still use the model, but smooth its output:
-  - **Fix A (preferred):** measure each hex's local sensitivity with a larger finite difference: `s_local = (pred(canopy) − pred(canopy + 0.10)) / 0.10`, °F per unit canopy, clipped ≥ 0. Then build a smooth concave curve `ΔT(n) = s_local × Δcanopy(n) × max(0, 1 − (canopy + Δcanopy(n)) / 0.6)`. It stays model-driven and hex-specific, with diminishing returns built in.
+  - **Fix A (preferred):** measure each hex's local sensitivity with a larger finite difference: `s_local = (pred(canopy) − pred(canopy + 0.10)) / 0.10`, °F per unit canopy, clipped ≥ 0. Then build a smooth concave curve `ΔT(n) = s_local × Δcanopy(n) × max(0, 1 − (canopy + Δcanopy(n)) / 0.6)`, with `Δcanopy(n) = n × CROWN_UNIT_M2 / AREA`. It stays model-driven and hex-specific, with diminishing returns built in.
   - **Fix B:** average the model over an ensemble of 5–10 LightGBM models trained with different seeds and subsamples. Averaging smooths the steps.
   - **Emergency only, if the heat data itself fails** (for example, a corrupt raster): use the literature slope, 0.8°C per +10% canopy, converted to °F (×1.8), capped at 40% canopy. Say so openly in the model card.
 - [ ] **Spillover (do it once the basic curves work):** when hex h gains Δ canopy, raise `canopyLag1` of its 6 ring-1 neighbors by Δ/7 and `canopyLag3` of the ring-3 neighbors by Δ/37. Re-predict those neighbors too. Total cooling = own + Σ neighbor cooling, weighted by each neighbor's population in the optimizer.
-  - To stay fast, compute the spillover once for n = NMAX, then scale it linearly with n.
-  - Store it as `spill` (°F·people per tree), which the optimizer adds to the hex's own value.
+  - To stay fast, compute the spillover once for n = NMAX_UNITS, then scale it linearly with n.
+  - Weight neighbor cooling by each neighbor's `people` (residents plus exposure), not just `pop`.
+  - Store it as `spill` (°F·people **per crown unit**). The optimizer multiplies it by the tree's `crown`.
 - [ ] Hexes with `cap = 0` get no curve but keep `heatPred` and `shap`.
 
 ### 5.5 SHAP explanations
@@ -473,9 +513,14 @@ hexes["gains"] = [m[:c].round(4).tolist() for m, c in zip(marg, hexes["cap"])]
   - `pdFPer10pct` alongside the literature range;
   - feature importance;
   - training energy;
-  - known limitations: a single hot day; air temperature from a car traverse; no night-time model; LightGBM step-shaped curves; no humidity.
+  - known limitations: a single hot day; air temperature from a car traverse; no night-time model; LightGBM step-shaped curves; no humidity;
+  - optimizer assumptions: crown sizes, the survival table (not calibrated to local data, see §4.5) and the exposure weight, all from `stats.json.assumptions`;
+  - diminishing returns is a simplification: Ziter 2019 found cooling strengthens above ~40% canopy, but the greedy optimizer needs concave curves.
 - [ ] **Backtest (optional):** needs 2013 canopy plus a second heat source, so it's usually skipped. Save a note on why it was skipped.
-- [ ] **Sensitivity:** perturb the crown area (25/50/80 m²) and check the stability of the top-500 hex ranking (Spearman). Save it to stats.
+- [ ] **Sensitivity:** check the stability of the top-500 hex ranking (Spearman) under each change, and save the results to stats:
+  - crown sizes scaled × 0.5 and × 1.5;
+  - survival off (`surv = 1` everywhere) vs. the table;
+  - `EXPO_W` = 0, 0.5 and 1.
 - [ ] **Optional Landsat cross-check:** train the same model on summer LST. Compare the canopy partial-dependence slopes; surface slopes should be larger, as the literature notes they overstate air-temperature effects about 2×.
 
 ### 5.8 `export/stats.py` and `export/export_web.py`
