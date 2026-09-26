@@ -66,7 +66,8 @@ export function prepare(input: OptInput): Prepared {
   }
 }
 
-type Eligible = { lists: Site[][]; caps: Int32Array }
+/** `off[i]` is hex i's first slot in the flat per-site arrays (prefix sum of caps). */
+type Eligible = { lists: Site[][]; caps: Int32Array; off: Int32Array; nSlots: number }
 
 function eligible(P: Prepared, p: Params): Eligible {
   const excl = new Set(p.excludeNbs)
@@ -74,10 +75,16 @@ function eligible(P: Prepared, p: Params): Eligible {
   const lists = P.hexes.map((h, i) => {
     if (excl.has(h.nb)) return []
     const l = p.avoidUtilities ? P.sites[i].filter((s) => !s.util) : P.sites[i]
-    caps[i] = Math.min(l.length, h.cap, 30)
+    caps[i] = Math.min(l.length, h.cap)
     return l
   })
-  return { lists, caps }
+  const off = new Int32Array(P.hexes.length)
+  let nSlots = 0
+  for (let i = 0; i < caps.length; i++) {
+    off[i] = nSlots
+    nSlots += caps[i]
+  }
+  return { lists, caps, off, nSlots }
 }
 
 /** °F from `crown` units starting at unit u; entries past the end of gains count as 0. */
@@ -95,14 +102,15 @@ function value(P: Prepared, h: Hex, u: number, s: Site, w: Params['weights']) {
   return s.surv * (cool * (w.heat + w.equity * h.vulnEq + w.health * h.vulnHealth) + w.eco * P.ecoNorm[s.size])
 }
 
-/** Shared per-plan state across greedy passes. `taken` is a per-hex bitmask over list indices (cap ≤ 30). */
-type State = { units: Int32Array; trees: Int32Array; taken: Int32Array; picked: Site[] }
+/** Shared per-plan state across greedy passes. `taken[E.off[i] + k]` marks site k of hex i as planted. */
+type State = { units: Int32Array; trees: Int32Array; taken: Uint8Array; picked: Site[] }
 
 /** First untaken site in hex i that fits `remaining`, as an index into E.lists[i], or −1. */
 function nextSite(E: Eligible, S: State, i: number, remaining: number) {
   if (S.trees[i] >= E.caps[i]) return -1
   const l = E.lists[i]
-  for (let k = 0; k < E.caps[i]; k++) if (!(S.taken[i] & (1 << k)) && l[k].cost <= remaining) return k
+  const o = E.off[i]
+  for (let k = 0; k < E.caps[i]; k++) if (!S.taken[o + k] && l[k].cost <= remaining) return k
   return -1
 }
 
@@ -132,7 +140,7 @@ function greedy(P: Prepared, E: Eligible, p: Params, hexIdx: number[], budget: n
     }
     spent += s.cost
     S.picked.push(s)
-    S.taken[i] |= 1 << cand[i]
+    S.taken[E.off[i] + cand[i]] = 1
     S.units[i] += s.crown
     S.trees[i]++
     push(i)
@@ -192,7 +200,7 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
 export function allocate(P: Prepared, p: Params): Result {
   const E = eligible(P, p)
   const n = P.hexes.length
-  const S: State = { units: new Int32Array(n), trees: new Int32Array(n), taken: new Int32Array(n), picked: [] }
+  const S: State = { units: new Int32Array(n), trees: new Int32Array(n), taken: new Uint8Array(E.nSlots), picked: [] }
   const all = P.hexes.map((_, i) => i)
   let spent = 0
   if (p.equityQuota > 0) {

@@ -146,6 +146,15 @@ describe('crown units, survival, exposure and weights', () => {
   })
 })
 
+describe('large hexes', () => {
+  it('plants every site in a hex with more than 32 sites, each once', () => {
+    const h = hex('big', { cap: 45, gains: Array.from({ length: 135 }, (_, k) => 0.5 * 0.99 ** k) })
+    const r = allocate(prepare({ hexes: [h], sites: sitesFor('big', 45), treeBenefits: TB }), { ...base, budget: 1e9 })
+    expect(r.impact.trees).toBe(45)
+    expect(new Set(r.siteIds).size).toBe(45)
+  })
+})
+
 describe('pareto and baselines', () => {
   it('pareto sweeps quota 0..1 in 21 steps', () => {
     const pts = pareto(P, { ...base, budget: 6000 })
