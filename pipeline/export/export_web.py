@@ -41,7 +41,11 @@ LABELS = {"canopy": "canopy", "imperv": "imperv", "lowveg": "lowveg", "bare": "b
 
 
 def r(x, n=3):
-    return None if x is None or (isinstance(x, float) and not np.isfinite(x)) else round(float(x), n)
+    return None if x is None or pd.isna(x) else round(float(x), n)
+
+
+def s_or_none(x):
+    return None if x is None or pd.isna(x) else str(x)
 
 
 def gains_for(canopy, units, per_unit):
@@ -88,7 +92,7 @@ def build_hexes(lin, sites):
             heat=r(heat), heatAnom=r(float(ht.at[c, "heatFill"]) - heat_med), heatPred=r(pred21[c]),
             heatResid=None if heat is None else r(heat - pred18[c]), spill=r(max(0.0, spill)),
             income=None if pd.isna(so_row.income) else int(round(so_row.income)), poverty=r(so_row.poverty),
-            poc=r(so_row.poc), asthma=r(so_row.asthma, 1), svi=r(so_row.svi), holc=so_row.holc or None,
+            poc=r(so_row.poc), asthma=r(so_row.asthma, 1), svi=r(so_row.svi), holc=s_or_none(so_row.holc),
             pop=r(so_row["pop"], 1), vulnEq=r(so_row.vulnEq), vulnHealth=r(so_row.vulnHealth), flood=bool(so_row.flood),
             cap=cap, gains=gains_for(canopy, units, own_per_unit), shap=[[LABELS[f], r(v)] for f, v in top],
         ))
@@ -99,7 +103,7 @@ def build_sites(sites):
     out = []
     for s in sites.itertuples(index=False):
         out.append(dict(id=s.id, lng=s.lng, lat=s.lat, h3=s.h3, type=s.type, cost=int(s.cost), util=bool(s.util),
-                        width=None if pd.isna(s.width) else int(s.width), space=s.space, nb=s.nb, species=s.species,
+                        width=None if pd.isna(s.width) else int(s.width), space=s_or_none(s.space), nb=s.nb, species=s.species,
                         size=s.size, crown=int(s.crown), surv=r(s.surv)))
     return out
 
@@ -259,7 +263,7 @@ def export(pipeline_kwh=None, pipeline_g=None, measured=None):
     WEB_DATA.mkdir(parents=True, exist_ok=True)
     for name, obj in out.items():
         path = WEB_DATA / name
-        path.write_text(json.dumps(obj, separators=(",", ":"), ensure_ascii=False))
+        path.write_text(json.dumps(obj, separators=(",", ":"), ensure_ascii=False, allow_nan=False))
         print(f"{name:24s} {path.stat().st_size / 1e6:6.2f} MB")
     print(f"export: {len(hexes):,} hexes, {len(site_rows):,} sites in {time.time() - t0:.1f}s")
 

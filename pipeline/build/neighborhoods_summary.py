@@ -1,7 +1,8 @@
 """Neighborhood-level summary (properties only; geometry is added at export) → interim/neighborhoods.parquet.
 
 Per neighborhood, from its grid hexes: canopy and heat are land-area weighted (2021 canopy; observed 2018 afternoon
-heat until the model's heatPred exists), income/asthma/poverty are population weighted, pop and sites are sums.
+heat until the model's heatPred exists), income/asthma/poverty are population weighted (land weighted for the few
+zero-population parks and industrial areas, so they carry their surrounding tracts' values), pop and sites are sums.
 tes is the population-weighted Tree Equity Score of block groups whose centers fall in the neighborhood (unofficial
 mirror; see pipeline/data/README.md). Ranks: 1 = hottest / greenest. bivHeat / bivIncome are 3×3 classes:
 (2 − canopy tercile) × 3 + heat tercile, and (2 − canopy tercile) × 3 + (2 − income tercile).
@@ -40,10 +41,15 @@ def build():
             name=nb,
             canopy=wavg(d.canopy21.to_numpy() / np.maximum(1 - d.water21.fillna(0).to_numpy(), 1e-9), land),
             heat=wavg(d.heatFill.to_numpy(), land),
-            income=wavg(d.income.to_numpy(), pop), asthma=wavg(d.asthma.to_numpy(), pop),
-            poverty=wavg(d.poverty.to_numpy(), pop), pop=float(pop.sum()), sites=int(sites.get(nb, 0)),
+            **{k: wavg(d[k].to_numpy(), pop if pop.sum() > 0 else land) for k in ("income", "asthma", "poverty")},
+            pop=float(pop.sum()), sites=int(sites.get(nb, 0)),
         ))
     out = pd.DataFrame(rows)
+    for k in ("income", "asthma", "poverty"):
+        n = out[k].isna().sum()
+        if n:
+            print(f"{k}: {n} neighborhoods with no tract value → city median")
+            out[k] = out[k].fillna(out[k].median())
     names = {f["properties"]["Name"] for f in json.load(open(RAW / "boundaries" / "neighborhoods.geojson"))["features"]}
     missing = sorted(names - set(out.name))
     if missing:
