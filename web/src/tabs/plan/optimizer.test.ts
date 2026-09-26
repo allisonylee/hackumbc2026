@@ -7,7 +7,7 @@ import { allocate, baselines, pareto, prepare, type OptInput } from './optimizer
 const hex = (h3: string, over: Partial<Hex>): Hex => ({
   h3, nb: 'A', canopy: 0.2, imperv: 0.5, bldg: 0.2, road: 0.1, heat: 92, heatAnom: 0, heatPred: 92,
   heatResid: 0, spill: 0, income: 50000, poverty: 0.2, poc: 0.5, asthma: 10, svi: 0.5, holc: null,
-  pop: 100, expo: 0, people: 100, vulnEq: 0.2, vulnHealth: 0.2, flood: false, cap: 3, gains: [0.1, 0.08, 0.06], shap: [],
+  pop: 100, vulnEq: 0.2, vulnHealth: 0.2, flood: false, cap: 3, gains: [0.1, 0.08, 0.06], shap: [],
   ...over,
 })
 // Default sites are small (1 crown unit) with survival 1, so one tree = one gain entry.
@@ -80,7 +80,7 @@ describe('allocate', () => {
   })
 })
 
-describe('crown units, survival, exposure and weights', () => {
+describe('crown units, survival and weights', () => {
   const plan = (hs: Hex[], ss: Site[], p: Partial<Params>) =>
     allocate(prepare({ hexes: hs, sites: ss, treeBenefits: TB }), { ...base, ...p })
 
@@ -108,12 +108,11 @@ describe('crown units, survival, exposure and weights', () => {
     expect(r.impact.coolingPersonF).toBeCloseTo(0.9 * 30)
   })
 
-  it('ranks by exposed people, not residents', () => {
-    const hs = [hex('a', { pop: 100, people: 100 }), hex('b', { pop: 80, people: 160, expo: 1 })]
+  it('ranks by residents', () => {
+    const hs = [hex('a', { pop: 100 }), hex('b', { pop: 160 })]
     const r = plan(hs, [...sitesFor('a', 3), ...sitesFor('b', 3)], { budget: 1000 })
     expect(r.siteIds).toEqual(['b-0'])
-    expect(r.impact.residents).toBe(80)
-    expect(r.impact.peopleExposed).toBe(160)
+    expect(r.impact.residents).toBe(160)
   })
 
   it('takes the next affordable site in a hex when the best one does not fit', () => {

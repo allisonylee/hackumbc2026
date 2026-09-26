@@ -3,7 +3,7 @@
 // Each hex h has marginal ML cooling gains[u] (°F) for its u-th crown unit (25 m²) of new canopy,
 // non-increasing in u, and candidate sites in pipeline order (crown × surv / cost, descending). The k-th tree
 // in a hex takes the next `crown` gain entries (small 1, medium 2, large 3). A site's value is its expected
-// (survival-weighted) cooling for the hex's exposed people, scaled by the priority multiplier, plus a
+// (survival-weighted) cooling for the hex's residents, scaled by the priority multiplier, plus a
 // size-dependent eco credit. A heap holds each hex's next affordable site; the best value per dollar is bought
 // until the budget runs out.
 import type { Baselines, Hex, Impact, Params, ParetoPoint, Result, Site, TreeBenefit } from '@/lib/types'
@@ -51,7 +51,7 @@ export function prepare(input: OptInput): Prepared {
   for (const l of sites) l.sort((a, b) => density(b) - density(a) || a.cost - b.cost)
   let maxHeatVal = 0
   input.hexes.forEach((h) => {
-    if (h.cap > 0 && h.gains.length) maxHeatVal = Math.max(maxHeatVal, h.gains[0] * h.people + h.spill)
+    if (h.cap > 0 && h.gains.length) maxHeatVal = Math.max(maxHeatVal, h.gains[0] * h.pop + h.spill)
   })
   const tb = input.treeBenefits
   const eco = (size: Size) => (ECO_MEDIUM_NORM * tb[size].usdYr) / (tb.medium.usdYr || 1)
@@ -95,7 +95,7 @@ function gainSum(h: Hex, u: number, crown: number) {
 }
 
 /** Person-°F of cooling (own hex + neighbor spillover) from a tree of `crown` units at unit u, before survival. */
-const benefit = (h: Hex, u: number, crown: number) => gainSum(h, u, crown) * h.people + h.spill * crown
+const benefit = (h: Hex, u: number, crown: number) => gainSum(h, u, crown) * h.pop + h.spill * crown
 
 function value(P: Prepared, h: Hex, u: number, s: Site, w: Params['weights']) {
   const cool = benefit(h, u, s.crown) / P.maxHeatVal
@@ -172,12 +172,11 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
     storm += tb.stormGalYr * m * s.surv
     usd += tb.usdYr * m * s.surv
   }
-  let residents = 0, people = 0, fSum = 0
+  let residents = 0, fSum = 0
   const targeted = Object.keys(perHex)
   for (const id of targeted) {
     const h = P.hexes[hexIndex.get(id)!]
     residents += h.pop
-    people += h.people
     fSum += fByHex[id]
   }
   const impact: Impact = {
@@ -187,7 +186,6 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
     coolingPersonF: cooling,
     avgFTargeted: targeted.length ? fSum / targeted.length : 0,
     residents,
-    peopleExposed: people,
     shareLowIncome: cooling > 0 ? lowInc / cooling : 0,
     shareHolcCD: picked.length ? holcCD / picked.length : 0,
     co2LbYr: co2,

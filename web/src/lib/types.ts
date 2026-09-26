@@ -23,10 +23,6 @@ export type Hex = {
   svi: number | null
   holc: HolcGrade | null
   pop: number
-  /** 0–1 outdoor exposure (bus stops, schools, cooling centers) */
-  expo: number
-  /** pop + EXPO_W × expo × P90(pop); the optimizer uses this */
-  people: number
   vulnEq: number
   vulnHealth: number
   flood: boolean
@@ -120,7 +116,6 @@ export type Stats = {
     crownM2: Record<'small' | 'medium' | 'large', number>
     survMean: number
     survBySpace: [string, number][]
-    expoW: number
     deadShareBySpace: [string, number][]
   }
 }
@@ -165,7 +160,6 @@ export type Impact = {
   coolingPersonF: number
   avgFTargeted: number
   residents: number
-  peopleExposed: number
   shareLowIncome: number
   shareHolcCD: number
   co2LbYr: number

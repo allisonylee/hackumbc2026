@@ -29,9 +29,6 @@ type Hex = {
   svi: number | null;      // 0–1 CDC SVI overall percentile
   holc: "A"|"B"|"C"|"D"|null;
   pop: number;             // estimated residents in hex
-  expo: number;            // 0–1 outdoor exposure: mean of bus boardings (log, normalized), school within
-                           // grid_disk(h,2), cooling center within grid_disk(h,4)
-  people: number;          // people exposed = pop + EXPO_W × expo × P90(pop); the optimizer uses this, not pop
   vulnEq: number;          // 0–1 equity score (poverty/income/poc composite)
   vulnHealth: number;      // 0–1 health score (asthma/svi composite)
   flood: boolean;          // intersects FEMA floodplain (optional)
@@ -104,7 +101,6 @@ From the Forestry inventory, excluding `CONDITION` "Stump" and "Dead" and all va
     crownM2: { small, medium, large },                    // m² per size class
     survMean: number,                                     // mean site survival
     survBySpace: [space, surv][],                         // mean surv per SPACE_TYPE
-    expoW: number,                                        // EXPO_W in Hex.people
     deadShareBySpace: [space, share][]                    // inventory dead/stump share (sanity check only)
   }
 }
@@ -147,8 +143,8 @@ type Result = {
   siteIds: string[];              // in selection order (rank → sprout delay)
   perHex: Record<string, number>; // h3 → trees
   impact: { trees, expectedSurviving, spent, coolingPersonF, avgFTargeted, residents,
-            peopleExposed, shareLowIncome, shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
-            // expectedSurviving = Σ surv; peopleExposed = Σ people over targeted hexes;
+            shareLowIncome, shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
+            // expectedSurviving = Σ surv;
             // cooling and eco benefits are survival-weighted expected values
 };
 allocate(p: Params): Result

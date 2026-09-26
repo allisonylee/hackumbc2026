@@ -150,7 +150,7 @@ hackumbc2026/
 
 Keep keys short but readable. Round coordinates to 5 decimals and floats to 3.
 
-> **Contract change applied (2026-09-26):** tree size, survival and exposure fields are in `CONTRACTS.md`, `web/src/lib/types.ts` and the mock. The optimizer (§8.1) uses the crown-unit formula as of 2026-09-26.
+> **Contract change applied (2026-09-26):** tree size and survival fields are in `CONTRACTS.md`, `web/src/lib/types.ts` and the mock. The optimizer (§8.1) uses the crown-unit formula as of 2026-09-26.
 
 ### `hexes.json`: array, one object per H3 res-10 cell (~14–16k)
 ```ts
@@ -174,8 +174,6 @@ type Hex = {
   svi: number | null;      // 0–1 CDC SVI overall percentile
   holc: "A"|"B"|"C"|"D"|null;
   pop: number;             // estimated residents in hex
-  expo: number;            // 0–1 outdoor exposure: bus stops, schools, cooling-center approaches (§4.6)
-  people: number;          // people exposed = pop + EXPO_W × expo × P90(pop); used by the optimizer
   vulnEq: number;          // 0–1 equity score (poverty/income/poc composite)
   vulnHealth: number;      // 0–1 health score (asthma/svi composite)
   flood: boolean;          // intersects FEMA floodplain (optional)
@@ -231,7 +229,7 @@ Properties:
   literature: { zaerpour_C_per10: 0.8, meta_C_per10: 0.3 },
   treeBenefits: { small: {...}, medium: {...}, large: {...} }, // USFS NE guide values
   assumptions: { crownM2: { small, medium, large }, survMean, survBySpace: [space, surv][],
-                 expoW, deadShareBySpace: [space, share][] }   // shown in the model card
+                 deadShareBySpace: [space, share][] }   // shown in the model card
 }
 ```
 
@@ -265,7 +263,7 @@ type Result = {
   siteIds: string[];              // in selection order (rank → sprout delay)
   perHex: Record<string, number>; // h3 → trees
   impact: { trees, expectedSurviving, spent, coolingPersonF, avgFTargeted, residents,
-            peopleExposed, shareLowIncome, shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
+            shareLowIncome, shareHolcCD, co2LbYr, stormGalYr, benefitUsdYr };
             // all benefits are survival-weighted expected values
 };
 allocate(p: Params): Result
@@ -299,7 +297,6 @@ Response: NDJSON stream, one JSON object per line:
 - `BBOX = (-76.72, 39.19, -76.52, 39.38)`, `H3_RES = 10`, `NMAX = 30`.
 - `CROWN_UNIT_M2 = 25`, `CROWN_UNITS = {"small": 1, "medium": 2, "large": 3}` (≈25/50/75 m² crowns at ~20 years), `NMAX_UNITS = 90`.
 - `SURV_MEAN = 0.66` (research.md: ~66% street-tree survival), plus the `SURV` table in §4.5.
-- `EXPO_W = 0.5`: a hex with maximum outdoor exposure and no residents counts as half of a dense (90th-percentile) residential hex.
 - `COST = {"pit": 1000, "potential": 2000}`.
 - Paths for `data/raw`, `data/interim` and `web/public/data`.
 - `EQUAL_AREA_CRS = "EPSG:26985"` (Maryland State Plane, meters).
@@ -331,6 +328,7 @@ The endpoints are in research.md §2.
   - **Check:** open it and confirm values are around 85–100°F with downtown hotter.
 - [ ] **Land cover:** ✅ already downloaded (2013, 2018, 2021, and 2013–2021 change) to `pipeline/data/raw/landcover/`. The class codes are the 2024 LULC scheme, **not** the old 1–12 scheme; see `pipeline/data/README.md` for the canopy, impervious, water and low-vegetation code groups.
 - [ ] **`census.py`:** ACS 2024 5-year at tract level, `state:24 county:510`.
+  - API key: read `CENSUS_API_KEY` from the repo-root `.env` (gitignored; never print or commit it). Load it with `os.environ` after `python-dotenv`'s `load_dotenv()`, or parse the file directly.
   - Variables: `B19013_001E` (income), `B17001_001E`/`_002E` (poverty), `B03002_001E`/`_003E` (non-Hispanic white → POC = 1 − white/total), `B01003_001E` (population).
   - Tract geometry: TIGER cartographic boundary `cb_2024_24_tract_500k`.
   - Replace the Census null codes (negative values like −666666666) with NaN.
@@ -339,10 +337,6 @@ The endpoints are in research.md §2.
   - CDC SVI 2022 FeatureServer, `where=STCNTY='24510'` → `RPL_THEMES`.
 - [ ] **`holc.py`:** download the Mapping Inequality JSON, filter `city == "Baltimore"`, save.
 - [ ] **`tes.py` (optional):** Tree Equity Score block groups for Baltimore, used as a baseline ranking.
-- [ ] **`exposure.py`** (needed for the exposure term, §4.6). Cooling centers are already in `raw/context/cooling_centers.geojson`. Fetch:
-  - MDOT MTA bus stops (Maryland open data / iMAP ArcGIS). Keep average weekday boardings if the layer has them; otherwise use stop counts. Add the endpoint to research.md §2.
-  - Baltimore City public school locations (Open Baltimore). Add the endpoint to research.md §2.
-  - If either fetch fails, build `expo` from what you have; cooling centers alone are enough for a first version.
 - [ ] **Optional:** FEMA floodplain, parks (to exclude).
 
 ### 4.4 `build/grid.py`: the H3 grid
@@ -384,12 +378,6 @@ Expect about 14–16k cells.
 ### 4.6 `build/social.py`
 - [ ] Spatial-join each hex centroid to its tract → `income`, `poverty`, `poc`, `asthma`, `svi`.
 - [ ] `pop = tract_pop × (hex_area / tract_area)`. Optional improvement: weight by non-canopy, non-water fraction.
-- [ ] **Outdoor exposure** (`pop` counts only people at home, but afternoon heat hits people waiting and walking):
-  - `bus` = weekday boardings (or stop count) in `grid_disk(h, 1)`, then `norm(log1p(bus))`;
-  - `school` = 1 if a school is within `grid_disk(h, 2)` (~250 m);
-  - `coolNear` = 1 if a cooling center is within `grid_disk(h, 4)` (~500 m walk);
-  - `expo = mean(bus, school, coolNear)` over the parts you have, 0–1;
-  - `people = pop + EXPO_W × expo × P90(pop)`. Save `EXPO_W` to `stats.json.assumptions`.
 - [ ] Centroid in a HOLC polygon → `holc`. Centroid in a neighborhood → `nb`.
 - [ ] Composite scores, min-max normalized across hexes:
   - `vulnEq = mean(norm(poverty), 1 − norm(income), norm(poc))`
@@ -492,7 +480,6 @@ hexes["gains"] = [m[:int(units.get(h, 0))].round(4).tolist() for m, h in zip(mar
   - **Emergency only, if the heat data itself fails** (for example, a corrupt raster): use the literature slope, 0.8°C per +10% canopy, converted to °F (×1.8), capped at 40% canopy. Say so openly in the model card.
 - [ ] **Spillover (do it once the basic curves work):** when hex h gains Δ canopy, raise `canopyLag1` of its 6 ring-1 neighbors by Δ/7 and `canopyLag3` of the ring-3 neighbors by Δ/37. Re-predict those neighbors too. Total cooling = own + Σ neighbor cooling, weighted by each neighbor's population in the optimizer.
   - To stay fast, compute the spillover once for n = NMAX_UNITS, then scale it linearly with n.
-  - Weight neighbor cooling by each neighbor's `people` (residents plus exposure), not just `pop`.
   - Store it as `spill` (°F·people **per crown unit**). The optimizer multiplies it by the tree's `crown`.
 - [ ] Hexes with `cap = 0` get no curve but keep `heatPred` and `shap`.
 
@@ -516,13 +503,12 @@ hexes["gains"] = [m[:int(units.get(h, 0))].round(4).tolist() for m, h in zip(mar
   - feature importance;
   - training energy;
   - known limitations: a single hot day; air temperature from a car traverse; no night-time model; LightGBM step-shaped curves; no humidity;
-  - optimizer assumptions: crown sizes, the survival table (not calibrated to local data, see §4.5) and the exposure weight, all from `stats.json.assumptions`;
+  - optimizer assumptions: crown sizes, and the survival table (not calibrated to local data, see §4.5), both from `stats.json.assumptions`;
   - diminishing returns is a simplification: Ziter 2019 found cooling strengthens above ~40% canopy, but the greedy optimizer needs concave curves.
 - [ ] **Backtest (optional):** needs 2013 canopy plus a second heat source, so it's usually skipped. Save a note on why it was skipped.
 - [ ] **Sensitivity:** check the stability of the top-500 hex ranking (Spearman) under each change, and save the results to stats:
   - crown sizes scaled × 0.5 and × 1.5;
-  - survival off (`surv = 1` everywhere) vs. the table;
-  - `EXPO_W` = 0, 0.5 and 1.
+  - survival off (`surv = 1` everywhere) vs. the table.
 - [ ] **Optional Landsat cross-check:** train the same model on summer LST. Compare the canopy partial-dependence slopes; surface slopes should be larger, as the literature notes they overstate air-temperature effects about 2×.
 
 ### 5.8 `export/stats.py` and `export/export_web.py`
@@ -667,13 +653,13 @@ The optimizer and its tests can be done by Session C, or by Session A after Curr
 **How it works:** every candidate site gets a score of value per dollar. The optimizer repeatedly buys the best-scoring site that still fits the budget, then re-scores that hex's next site, which is worth less because of diminishing returns. It stops when the budget runs out. This "greedy" method is near-optimal when returns diminish, and it runs in milliseconds, so the map can update while a slider is being dragged. It uses only precomputed JSON; the heat model never runs in the browser during planning.
 
 A site's **value** is the expected cooling it delivers to people, weighted by who those people are, plus a flat ecological credit:
-- **cooling** = the next `crown` entries of the hex's `gains` (°F) × `people` in the hex, plus neighbor spillover;
+- **cooling** = the next `crown` entries of the hex's `gains` (°F) × residents (`pop`) in the hex, plus neighbor spillover;
 - × **survival**: a tree that dies delivers nothing, so all benefits are multiplied by `surv`;
 - × the **priority multiplier** from the sliders: `w.heat + w.equity × vulnEq + w.health × vulnHealth`;
 - + **eco** = `w.eco` × the USFS per-tree benefit for the tree's size class × `surv`.
 
 **What the "who benefits" sliders do** (put a short version of this in the UI's info popover and the pitch):
-- **Yes, they move the trees.** The sliders change each hex's multiplier, which changes the ranking and so which sites get bought first. Heat alone ranks by cooling × people per dollar. Adding Equity boosts hexes in proportion to `vulnEq`, so a hot, poor block outranks an equally hot, wealthy one. Adding Health does the same with asthma and SVI.
+- **Yes, they move the trees.** The sliders change each hex's multiplier, which changes the ranking and so which sites get bought first. Heat alone ranks by cooling × residents per dollar. Adding Equity boosts hexes in proportion to `vulnEq`, so a hot, poor block outranks an equally hot, wealthy one. Adding Health does the same with asthma and SVI.
 - **Equity and Health scale cooling; they don't replace it.** A block where a tree cools nothing gets nothing from these sliders. That keeps every plan physically sensible: we never plant a tree that won't cool anyone just because the block scores high on need.
 - **Only the ratios matter.** (1, 1, 0, 0) and (0.5, 0.5, 0, 0) give the same plan. With Heat and Equity both at 1, the most vulnerable hex (`vulnEq = 1`) is worth at most twice an otherwise identical hex with `vulnEq = 0`. Setting Heat to 0 makes need a hard filter: hexes with `vulnEq = 0` get only their eco value.
 - **Eco pulls the other way.** It's a per-tree credit that ignores heat and people, so raising it favors cheap, large-crown, high-survival sites wherever they are, including less populated areas.
@@ -682,12 +668,12 @@ A site's **value** is the expected cooling it delivers to people, weighted by wh
 
 - [ ] `heap.ts`: a small binary max-heap.
 - [ ] **Precompute on load:**
-  - normalization constants: `maxHeatVal = max(gains[0] × people + spill)` per crown unit, and similarly for the other terms;
+  - normalization constants: `maxHeatVal = max(gains[0] × pop + spill)` per crown unit, and similarly for the other terms;
   - each hex's cost list, taken from its sorted sites after filters are applied.
 - [ ] **Value of the k-th tree in hex h** (site `s = sitesByHex[h][k]`; `u[h]` = crown units already placed in h):
   ```ts
   const g = sum(h.gains.slice(u[h], u[h] + s.crown));                 // °F from this tree's crown units
-  const cool = (g * h.people + h.spill * s.crown) / maxHeatVal;       // ML cooling incl. neighbor spillover
+  const cool = (g * h.pop + h.spill * s.crown) / maxHeatVal;       // ML cooling incl. neighbor spillover
   const v = s.surv * (cool * (w.heat + w.equity * h.vulnEq + w.health * h.vulnHealth)
                       + w.eco * ECO_NORM[s.size]);                    // USFS benefit by size class
   const ratio = v / s.cost;
@@ -700,8 +686,7 @@ A site's **value** is the expected cooling it delivers to people, weighted by wh
   - Pass 2 runs over all hexes with the remaining budget, continuing each hex's k from pass 1.
 - [ ] **Impact:**
   - trees, expected surviving trees (`Σ surv`) and dollars spent;
-  - `coolingPersonF = Σ surv × g × people` (survival-weighted);
-  - people exposed (`Σ people` over targeted hexes), alongside residents;
+  - `coolingPersonF = Σ surv × g × pop` (survival-weighted);
   - average °F cooling across targeted hexes;
   - residents in targeted hexes;
   - low-income share: benefit in `vulnEq ≥ 0.5` hexes divided by total benefit;
@@ -750,7 +735,7 @@ A site's **value** is the expected cooling it delivers to people, weighted by wh
   - an **"Ask the AI to explain"** button that opens the chat with a prefilled question and the site's stats.
 
 ### 8.4 Impact panel (right)
-- [ ] `StatTile`s with `AnimatedNumber`: trees (with "≈N expected to survive" underneath); $ spent; average −°F in targeted blocks; residents reached; people exposed outdoors; % of benefit to low-income blocks; % in HOLC C/D; CO₂ lb/yr; stormwater gal/yr; $ benefits/yr.
+- [ ] `StatTile`s with `AnimatedNumber`: trees (with "≈N expected to survive" underneath); $ spent; average −°F in targeted blocks; residents reached; % of benefit to low-income blocks; % in HOLC C/D; CO₂ lb/yr; stormwater gal/yr; $ benefits/yr.
 - [ ] **Pareto chart** (Observable Plot):
   - line of cooling vs. low-income share;
   - dot for the current plan, with a hollow dot for each baseline;

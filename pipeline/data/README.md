@@ -66,7 +66,7 @@ Suggested derived fractions:
 
 ## census/
 - `cb_2024_24_tract_500k.zip` and `cb_2024_24_bg_500k.zip`: TIGER cartographic boundaries for Maryland. Filter `COUNTYFP == '510'`.
-- **Still needed:** ACS 5-year tables (B19013 income, B17001 poverty, B03002 race, B01003 population). The Census API needs a free key (https://api.census.gov/data/key_signup.html).
+- **Still needed:** ACS 5-year tables (B19013 income, B17001 poverty, B03002 race, B01003 population). The Census API key is in the repo-root `.env` as `CENSUS_API_KEY` (gitignored; worktrees must read it from the main checkout).
   - Stopgap: CDC SVI (below) already has tract population, poverty (150%), minority share and more. Only median income needs ACS.
 
 ## health/

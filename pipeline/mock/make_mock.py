@@ -15,7 +15,7 @@ import numpy as np
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
-from pipeline.config import COST, CROWN_UNIT_M2, CROWN_UNITS, EXPO_W, H3_RES, NMAX, NMAX_UNITS, RAW, SURV_MEAN, WEB_DATA
+from pipeline.config import COST, CROWN_UNIT_M2, CROWN_UNITS, H3_RES, NMAX, NMAX_UNITS, RAW, SURV_MEAN, WEB_DATA
 from pipeline.site_rules import crown_units, rescale_surv, size_class, surv_base
 
 rng = np.random.default_rng(42)
@@ -139,21 +139,6 @@ def main():
         x["vulnEq"] = float((n_pov[i] + (1 - n_inc[i]) + n_poc[i]) / 3)
         x["vulnHealth"] = float((n_ast[i] + x["svi"]) / 2)
 
-    # --- outdoor exposure: real cooling centers; synthetic bus stops and schools ---
-    cc_raw = json.load(open(RAW / "context" / "cooling_centers.geojson"))
-    cc_cells = {h3.latlng_to_cell(f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0], H3_RES)
-                for f in cc_raw["features"] if f["geometry"]}
-    cool_near = {n for c in cc_cells for n in h3.grid_disk(c, 4)}
-    school_cells = [cells[int(i)] for i in rng.choice(len(cells), 25, replace=False)]
-    school_near = {n for c in school_cells for n in h3.grid_disk(c, 2)}
-    bus = [max(0.0, rng.normal(400 * math.exp(-km((x["lat"], x["lng"]), DOWNTOWN) / 1.5), 60))
-           if rng.random() < 0.3 else 0.0 for x in rows]  # weekday boardings in grid_disk(h, 1)
-    n_bus = minmax(np.log1p(bus))
-    p90 = float(np.quantile([x["pop"] for x in rows], 0.9))
-    for i, x in enumerate(rows):
-        x["expo"] = float((n_bus[i] + (x["h3"] in school_near) + (x["h3"] in cool_near)) / 3)
-        x["people"] = x["pop"] + EXPO_W * x["expo"] * p90
-
     # --- sites: the real vacant planting sites from the Forestry inventory ---
     cell_set = set(cells)
     sites_by_hex = {c: [] for c in cells}
@@ -209,7 +194,6 @@ def main():
             heatResid=None if x["heat"] is None else r(x["heat"] - x["heatPred"]),
             spill=r(g0 * 20), income=round(x["income"]), poverty=r(x["poverty"]), poc=r(x["poc"]),
             asthma=r(x["asthma"], 1), svi=r(x["svi"]), holc=x["holc"], pop=r(x["pop"], 1),
-            expo=r(x["expo"]), people=r(x["people"], 1),
             vulnEq=r(x["vulnEq"]), vulnHealth=r(x["vulnHealth"]), flood=x["flood"],
             cap=cap, gains=gains, shap=[[f, r(v)] for f, v in shap_vals],
         ))
@@ -278,6 +262,7 @@ def main():
         if h3.latlng_to_cell(lat, lng, H3_RES) in cell_set:
             trees.append([round(lng, 5), round(lat, 5), round(float(pr.get("DBH") or 0), 1)])
 
+    cc_raw = json.load(open(RAW / "context" / "cooling_centers.geojson"))
     cooling = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": round_coords(f["geometry"]["coordinates"][:2])},
          "properties": {"name": f["properties"]["NAME"], "address": f["properties"]["ADDRESS"],
@@ -347,7 +332,6 @@ def mock_assumptions(sites, trees_raw):
         crownM2={k: v * CROWN_UNIT_M2 for k, v in CROWN_UNITS.items()},
         survMean=SURV_MEAN,
         survBySpace=[[k, r(np.mean(v))] for k, v in sorted(by_space.items(), key=lambda kv: -len(kv[1])) if k],
-        expoW=EXPO_W,
         deadShareBySpace=[[k, r(a / n)] for k, (a, n) in sorted(dead.items(), key=lambda kv: -kv[1][1]) if k and n >= 200],
     )
 

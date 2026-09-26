@@ -20,7 +20,7 @@ import { FocusChip } from './FocusChip'
 import { usePlanUi, type PlanView } from './planUi'
 
 const WEIGHT_META: Record<keyof Weights, { label: string; hint: string; range: string }> = {
-  heat: { label: 'Heat', hint: 'Cooling × people reached per dollar', range: '[&_[data-slot=slider-range]]:bg-heat' },
+  heat: { label: 'Heat', hint: 'Cooling × residents reached per dollar', range: '[&_[data-slot=slider-range]]:bg-heat' },
   equity: { label: 'Equity', hint: 'Boost for low-income, high-poverty blocks', range: '[&_[data-slot=slider-range]]:bg-equity' },
   health: { label: 'Health', hint: 'Boost for blocks with more asthma and social vulnerability', range: '[&_[data-slot=slider-range]]:bg-rose-400' },
   eco: { label: 'Eco co-benefits', hint: 'Flat credit per tree for CO₂ and stormwater, wherever it is', range: '[&_[data-slot=slider-range]]:bg-canopy' },
@@ -160,7 +160,7 @@ function WeightsControl() {
             </button>
           </PopoverTrigger>
           <PopoverContent side="right" align="start" className="w-80 space-y-1.5 text-xs leading-relaxed">
-            <p><b>Yes, these move the trees.</b> Each block's value is its predicted cooling × people, multiplied by Heat + Equity × need + Health × need.</p>
+            <p><b>Yes, these move the trees.</b> Each block's value is its predicted cooling × residents, multiplied by Heat + Equity × need + Health × need.</p>
             <p>Equity and Health <b>scale</b> cooling; they never place a tree that cools no one.</p>
             <p>Only the ratios matter. Eco is a flat per-tree credit, so raising it favors cheap sites anywhere.</p>
             <p>The effect is biggest at small and medium budgets; at large budgets plans converge.</p>
