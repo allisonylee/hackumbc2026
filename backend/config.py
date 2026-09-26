@@ -26,9 +26,14 @@ class Settings:
     num_ctx: int = field(default_factory=lambda: int(os.getenv("NUM_CTX", "8192")))
     temperature: float = field(default_factory=lambda: float(os.getenv("TEMPERATURE", "0.3")))
     keep_alive: str = field(default_factory=lambda: os.getenv("KEEP_ALIVE", "30m"))
-    # Joules per generated token for the estimate when energy can't be measured.
-    # Calibrated on the Mac in step 5; until then this is a placeholder and answers say measured=false.
+    # Joules per generated token, the fallback estimate when energy can't be measured and ESTIMATE_WATTS
+    # is unset. Calibrated on the Mac with calibrate_energy.py.
     j_per_token: float = field(default_factory=lambda: float(os.getenv("J_PER_TOKEN", "0.3")))
+    # MEASURE_ENERGY=0 skips zeus-apple-silicon even on a Mac (tests; or to compare against the estimate).
+    measure_energy: bool = field(default_factory=lambda: os.getenv("MEASURE_ENERGY", "1") != "0")
+    # For machines without energy counters (the droplet): estimate = Ollama's generation seconds × this.
+    estimate_watts: float | None = field(
+        default_factory=lambda: float(os.environ["ESTIMATE_WATTS"]) if os.getenv("ESTIMATE_WATTS") else None)
 
 
 # Request limits, mirrored by web/src/features/chat/llm.ts.

@@ -35,7 +35,7 @@ class OllamaError(RuntimeError):
 class Usage:
     tokens: int  # generated tokens (Ollama eval_count)
     prompt_tokens: int
-    seconds: float  # generation time reported by Ollama
+    seconds: float  # prompt reading + generation time reported by Ollama
 
 
 def build_messages(history: list[dict], context: str = "") -> list[dict]:
@@ -75,7 +75,7 @@ async def stream_answer(
                     yield Usage(
                         tokens=int(chunk.get("eval_count", 0)),
                         prompt_tokens=int(chunk.get("prompt_eval_count", 0)),
-                        seconds=chunk.get("eval_duration", 0) / 1e9,
+                        seconds=(chunk.get("prompt_eval_duration", 0) + chunk.get("eval_duration", 0)) / 1e9,
                     )
                     return
     except httpx.HTTPError as e:

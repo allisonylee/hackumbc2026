@@ -94,7 +94,7 @@ def test_rate_limit():
 
 def test_health_and_cors():
     with client(fake_ollama(OK), model="m", region="Toronto", allowed_origins=["https://x.test"]) as c:
-        assert c.get("/api/health").json() == {"model": "m", "provider": "ollama", "region": "Toronto"}
+        assert c.get("/api/health").json() == {"model": "m", "provider": "ollama", "region": "Toronto", "energy": "estimated"}
         pre = c.options("/api/chat", headers={"Origin": "https://x.test", "Access-Control-Request-Method": "POST",
                                               "Access-Control-Request-Headers": "content-type"})
         assert pre.headers["access-control-allow-origin"] == "https://x.test"

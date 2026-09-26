@@ -3,6 +3,7 @@
 Run from backend/: uvicorn main:app --reload
 """
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -19,7 +20,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from config import MAX_CHARS, MAX_MESSAGES, Settings
-from energy import estimate_wh
+from energy import EnergyMeter, round_wh
 from llm import OllamaError, Usage, build_messages, stream_answer
 from rag import Index, format_sources, retrieve, search_query
 from router import Router
@@ -77,19 +78,29 @@ def create_app(
     transport: httpx.AsyncBaseTransport | None = None,
     index: "Index | None | object" = _UNSET,
     data: "AppData | None | object" = _UNSET,
+    meter: EnergyMeter | None = None,
 ) -> FastAPI:
-    """Tests can swap in a fake Ollama (`transport`), a corpus (`index`) and app data (`data`); None disables each."""
+    """Tests can swap in a fake Ollama (`transport`), a corpus (`index`), app data (`data`; None disables each)
+    and an energy meter."""
     settings = settings or Settings()
     corpus = Index.load(settings) if index is _UNSET else index
     app_data = AppData.load() if data is _UNSET else data
     router = Router(app_data, corpus.lowercase_words() if corpus else set())
+    meter = meter or EnergyMeter(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         timeout = httpx.Timeout(connect=5, read=120, write=10, pool=5)
         async with httpx.AsyncClient(timeout=timeout, transport=transport) as client:
             app.state.ollama = client
+            baseline = None
+            if meter.monitor is not None:
+                await meter.sample_baseline()
+                log.info("energy: measuring with zeus-apple-silicon, idle baseline %.2f W", meter.baseline_w)
+                baseline = asyncio.create_task(meter.keep_baseline())
             yield
+            if baseline:
+                baseline.cancel()
 
     app = FastAPI(title="Canopy Guide API", lifespan=lifespan)
     limiter = Limiter(key_func=get_remote_address)
@@ -104,7 +115,8 @@ def create_app(
 
     @app.get("/api/health")
     def health():
-        return {"model": settings.model, "provider": "ollama", "region": settings.region}
+        return {"model": settings.model, "provider": "ollama", "region": settings.region,
+                "energy": "measured" if meter.measuring else "estimated"}
 
     @app.post("/api/chat")
     @limiter.limit(settings.rate_limit)
@@ -113,6 +125,22 @@ def create_app(
         client = request.app.state.ollama
 
         async def events() -> AsyncIterator[bytes]:
+            handle = meter.start()
+            finished = False
+            try:
+                async for chunk in answer():
+                    if isinstance(chunk, Usage):
+                        reading = meter.finish(handle, chunk.tokens, chunk.seconds)
+                        finished = True
+                        yield line({"type": "done", "tokens": chunk.tokens, "energyWh": round_wh(reading.wh),
+                                    "measured": reading.measured, "cached": False})
+                    else:
+                        yield chunk
+            finally:
+                if not finished:  # error, or the client went away mid-answer
+                    meter.cancel(handle)
+
+        async def answer() -> AsyncIterator[bytes | Usage]:
             question = history[-1]["content"]
             route = router.route(question, body.context.model_dump() if body.context else None)
             query = f"{search_query(history)} {route.extra_query}".strip()
@@ -123,16 +151,7 @@ def create_app(
             yield line({"type": "sources", "items": items})
             try:
                 async for part in stream_answer(client, settings, messages):
-                    if isinstance(part, Usage):
-                        yield line({
-                            "type": "done",
-                            "tokens": part.tokens,
-                            "energyWh": round(estimate_wh(part.tokens, settings.j_per_token), 4),
-                            "measured": False,
-                            "cached": False,
-                        })
-                    else:
-                        yield line({"type": "token", "text": part})
+                    yield part if isinstance(part, Usage) else line({"type": "token", "text": part})
             except OllamaError as e:
                 log.error("chat failed: %s", e)
                 yield line({"type": "error", "message": "The guide is offline right now."})
