@@ -17,6 +17,8 @@ type Hex = {
   imperv: number;          // 0–1
   bldg: number;            // 0–1 building footprint fraction
   road: number;            // 0–1 road fraction
+  lowveg: number;          // 0–1 low vegetation (grass, herbaceous, shrub), 2021
+  waterNear: number;       // 0–1 water fraction within grid_disk(h, 4), including open water outside the grid, 2021
   heat: number | null;     // °F, NOAA Heat Watch afternoon 2018-08-29 (mean); null if not covered
   heatAnom: number;        // °F minus city median (uses heatPred where heat is null)
   heatPred: number;        // ML prediction °F with 2021 land cover

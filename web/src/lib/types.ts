@@ -11,6 +11,10 @@ export type Hex = {
   imperv: number
   bldg: number
   road: number
+  /** 0–1 low vegetation (grass, herbaceous, shrub), 2021 */
+  lowveg: number
+  /** 0–1 water fraction within grid_disk(h, 4) */
+  waterNear: number
   heat: number | null
   heatAnom: number
   heatPred: number
