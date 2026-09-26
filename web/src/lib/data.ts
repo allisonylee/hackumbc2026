@@ -30,8 +30,7 @@ export async function loadData(onProgress?: (done: number, total: number) => voi
     if (list) list.push(s)
     else sitesByHex.set(s.h3, [s])
   }
-  // Contract: sites are already cheapest-first within each hex; keep a stable sort as a guard.
-  for (const list of sitesByHex.values()) list.sort((a, b) => a.cost - b.cost)
+  // Keep file order: the contract defines each hex's site order (crown × surv / cost, see CONTRACTS.md).
 
   return {
     hexes, sites, nbs, holc, city, cooling, stats, species, footprint,
