@@ -29,8 +29,6 @@ const NO_DATA: RGBA = [120, 120, 120, 150]
 export type HexColorOpts = {
   colorBy: ColorBy
   modelView: 'pred' | 'resid'
-  /** time-lapse position 0 (2013) → 1 (today), or null */
-  t: number | null
   deltas: Map<string, number> | null
   domains: Derived['domains']
 }
@@ -40,11 +38,9 @@ export function hexColor(h: Hex, o: HexColorOpts): RGBA {
   const d = o.deltas?.get(h.h3) ?? 0
   let rgb
   switch (o.colorBy) {
-    case 'canopy': {
-      const c = o.t != null && typeof h.canopy13 === 'number' ? h.canopy13 + (h.canopy - h.canopy13) * o.t : h.canopy
-      rgb = RAMPS.canopy(norm(c, ...o.domains.canopy))
+    case 'canopy':
+      rgb = RAMPS.canopy(norm(h.canopy, ...o.domains.canopy))
       break
-    }
     case 'heat':
       rgb = RAMPS.heat(norm((h.heat ?? h.heatPred) + d, ...o.domains.heat))
       break
@@ -121,7 +117,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
   const beforeId = useStore((s) => s.map.labelLayerId)
   const zoom = useStore((s) => s.map.zoom)
   const mode3d = useStore((s) => s.map.mode3d)
-  const { colorBy, modelView, heightByHeat, bivariate, layers: toggles, timelapse } = useStore((s) => s.current)
+  const { colorBy, modelView, heightByHeat, bivariate, layers: toggles } = useStore((s) => s.current)
   const hoveredNb = useStore((s) => s.hovered.nb)
   const selectedNb = useStore((s) => s.selectedNb)
   const deltas = useCurrentUi((s) => s.deltas)
@@ -129,7 +125,6 @@ export function useCurrentLayers(active: boolean): TabLayers {
   const rise = useRise(active && !!data && !!beforeId)
   const trees = useTrees(active && toggles.trees && zoom >= TREES_MIN_ZOOM)
 
-  const t = timelapse ? timelapse.t : null
   const reduce = prefersReducedMotion()
   const hexOpacity = zoom <= 14.75 ? 0.7 : zoom >= 15.25 ? 0.15 : 0.7 - ((zoom - 14.75) / 0.5) * 0.55
   const elevOn = mode3d && heightByHeat && !bivariate
@@ -137,7 +132,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
   // ---- Hexes (rebuilt when color/height state changes) ----
   const hexLayer = useMemo(() => {
     if (!active || !data || !derived) return null
-    const opts: HexColorOpts = { colorBy, modelView, t, deltas, domains: derived.domains }
+    const opts: HexColorOpts = { colorBy, modelView, deltas, domains: derived.domains }
     return new H3HexagonLayer<Hex>({
       id: 'hex-current',
       data: data.hexes,
@@ -154,7 +149,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
       highlightColor: [255, 255, 255, 80],
       transitions: reduce ? undefined : { getElevation: 800, getFillColor: 800 },
       updateTriggers: {
-        getFillColor: [colorBy, modelView, t, deltasKey],
+        getFillColor: [colorBy, modelView, deltasKey],
         getElevation: [elevOn, deltasKey],
       },
       onHover: (info: PickingInfo<Hex>) => {
@@ -165,7 +160,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
       },
       ...before(beforeId),
     })
-  }, [active, data, derived, colorBy, modelView, t, deltas, deltasKey, rise, elevOn, hexOpacity, bivariate, reduce, beforeId])
+  }, [active, data, derived, colorBy, modelView, deltas, deltasKey, rise, elevOn, hexOpacity, bivariate, reduce, beforeId])
 
   // ---- Neighborhoods: pick/bivariate fill, outlines, labels ----
   const nbLayers = useMemo(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Box, Building2, Layers, Map as MapIcon, Pause, Play, Satellite, Search, Square } from 'lucide-react'
+import { Box, Building2, Layers, Map as MapIcon, Satellite, Search, Square } from 'lucide-react'
 import { useStore, type ColorBy } from '@/store'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -7,7 +7,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { fmtPct } from '@/lib/format'
 import { useDerived } from './derived'
 import { fuzzyScore } from './fuzzy'
@@ -124,10 +123,9 @@ function LayersMenu() {
 }
 
 export function ControlBar() {
-  const { colorBy, modelView, heightByHeat, bivariate, timelapse } = useStore((s) => s.current)
+  const { colorBy, modelView, heightByHeat, bivariate } = useStore((s) => s.current)
   const setCurrent = useStore((s) => s.setCurrent)
   const mode3d = useStore((s) => s.map.mode3d)
-  const derived = useDerived()
   const segBtn = 'h-7 px-2 text-xs text-white/65 data-[state=on]:bg-white/15 data-[state=on]:text-white'
 
   return (
@@ -144,7 +142,7 @@ export function ControlBar() {
           size="sm"
           spacing={0}
           value={colorBy}
-          onValueChange={(v) => v && setCurrent({ colorBy: v as ColorBy, bivariate: null, ...(v !== 'canopy' ? { timelapse: null } : {}) })}
+          onValueChange={(v) => v && setCurrent({ colorBy: v as ColorBy, bivariate: null })}
           className="flex-wrap rounded-lg bg-white/5 p-0.5"
           aria-label="Color hexes by"
         >
@@ -198,27 +196,6 @@ export function ControlBar() {
           </SelectContent>
         </Select>
 
-        {derived?.hasCanopy13 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrent(
-                    timelapse?.playing
-                      ? { timelapse: { ...timelapse, playing: false } }
-                      : { timelapse: { playing: true, t: timelapse && timelapse.t < 1 ? timelapse.t : 0 }, colorBy: 'canopy', bivariate: null },
-                  )
-                }
-                className="flex h-7 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white/80 hover:bg-white/10"
-                aria-label={timelapse?.playing ? 'Pause canopy time-lapse' : 'Play canopy time-lapse'}
-              >
-                {timelapse?.playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />} Time-lapse
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Canopy change since 2013</TooltipContent>
-          </Tooltip>
-        )}
       </div>
     </section>
   )

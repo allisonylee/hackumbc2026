@@ -29,7 +29,6 @@ export type Derived = {
   nbBounds: Map<string, Bounds>
   hexesByNb: Map<string, Hex[]>
   nbList: NbProps[]
-  hasCanopy13: boolean
   holcLabels: { grade: HolcGrade; position: [number, number] }[]
 }
 
@@ -101,7 +100,6 @@ export function getDerived(d: AppData): Derived {
     nbBounds: new Map(d.nbs.features.map((f) => [f.properties.name, bboxOf(f.geometry)])),
     hexesByNb,
     nbList: d.nbs.features.map((f) => f.properties),
-    hasCanopy13: d.hexes.some((h) => typeof h.canopy13 === 'number'),
     holcLabels: d.holc.features
       .filter((f) => f.properties.grade)
       .map((f) => {

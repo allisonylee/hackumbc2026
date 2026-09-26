@@ -5,7 +5,7 @@ import { fmtF, fmtPct, fmtSignedF, fmtUsd } from '@/lib/format'
 import { useDerived } from './derived'
 
 export function MapLegend() {
-  const { colorBy, modelView, bivariate, heightByHeat, timelapse } = useStore((s) => s.current)
+  const { colorBy, modelView, bivariate, heightByHeat } = useStore((s) => s.current)
   const mode3d = useStore((s) => s.map.mode3d)
   const derived = useDerived()
   if (!derived) return null
@@ -23,7 +23,7 @@ export function MapLegend() {
     )
   } else {
     const props = {
-      canopy: { title: timelapse ? 'Tree canopy (time-lapse)' : 'Tree canopy', ramp: RAMPS.canopy, lo: fmtPct(d.canopy[0]), hi: `${fmtPct(d.canopy[1])}+` },
+      canopy: { title: 'Tree canopy', ramp: RAMPS.canopy, lo: fmtPct(d.canopy[0]), hi: `${fmtPct(d.canopy[1])}+` },
       heat: { title: 'Afternoon air temperature', ramp: RAMPS.heat, lo: fmtF(d.heat[0]), hi: fmtF(d.heat[1]) },
       income: { title: 'Median household income', ramp: RAMPS.income, lo: fmtUsd(d.income[0]), hi: fmtUsd(d.income[1]) },
       asthma: { title: 'Adults with asthma', ramp: RAMPS.asthma, lo: `${d.asthma[0].toFixed(1)}%`, hi: `${d.asthma[1].toFixed(1)}%` },

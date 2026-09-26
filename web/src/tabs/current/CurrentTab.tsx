@@ -1,11 +1,9 @@
 import { useEffect } from 'react'
-import { useStore } from '@/store'
 import { ControlBar } from './ControlBar'
 import { MapLegend } from './MapLegend'
 import { ModelCardDialog } from './ModelCard'
 import { NeighborhoodCard } from './NeighborhoodCard'
 import { StatsPanel } from './StatsPanel'
-import { Timelapse } from './Timelapse'
 import { loadHeatModel } from './whatIf'
 
 /** Tab 1 (plan §7): controls + neighborhood card on the left, legend bottom-left, stats on the right. */
@@ -13,11 +11,6 @@ export default function CurrentTab() {
   useEffect(() => {
     // Warm the optional model file so the what-if slider is ready when a card opens.
     loadHeatModel()
-    return () => {
-      // Leaving the tab: stop the time-lapse so the Plan/Learn tabs start clean.
-      const s = useStore.getState()
-      if (s.current.timelapse) s.setCurrent({ timelapse: null })
-    }
   }, [])
 
   return (
@@ -32,7 +25,6 @@ export default function CurrentTab() {
         </div>
       </div>
       <StatsPanel />
-      <Timelapse />
       <ModelCardDialog />
     </>
   )

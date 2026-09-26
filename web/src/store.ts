@@ -52,7 +52,6 @@ type State = {
     bivariate: null | 'heat' | 'income'
     layers: { holc: boolean; sites: boolean; cooling: boolean; trees: boolean }
     whatIf: { nb: string; canopy: number } | null
-    timelapse: { playing: boolean; t: number } | null
   }
   setCurrent: (c: Partial<State['current']>) => void
   setCurrentLayers: (l: Partial<State['current']['layers']>) => void
@@ -117,7 +116,6 @@ export const useStore = create<State>()((set) => ({
     bivariate: null,
     layers: { holc: false, sites: true, cooling: false, trees: true },
     whatIf: null,
-    timelapse: null,
   },
   setCurrent: (c) => set((s) => ({ current: { ...s.current, ...c } })),
   setCurrentLayers: (l) => set((s) => ({ current: { ...s.current, layers: { ...s.current.layers, ...l } } })),
