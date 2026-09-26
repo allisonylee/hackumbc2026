@@ -94,3 +94,22 @@ Suggested derived fractions:
 - ACS tables: need an API key (see above).
 - Baltimore UHI sensor time series: only needed for the Tiger Data prize.
 - 3DEP elevation: optional model feature.
+
+## Interim outputs (`pipeline/data/interim/`, gitignored)
+Built by `python -m pipeline.run` (Stages 0–1, ~25 s). Every file is keyed by `h3` (res 10) except `sites` and `neighborhoods`.
+
+| File | Rows | Contents |
+|---|---|---|
+| `grid.parquet` | 14,322 | `h3, nb, lat, lng`. Cells whose center is in a neighborhood, plus 45 edge cells holding planting sites |
+| `sites.parquet` | 66,322 | Plantable inventory sites with `type, cost, util, width, space, size, crown, surv, species, h3, nb`, sorted per hex by `crown × surv / cost` |
+| `landcover.parquet` | 17,697 | `canopy, road, bldg, imperv, water, lowveg` × {13, 18, 21}, `valid_m2`, `inGrid`. Includes a 4-ring halo of cells outside the grid (open water) for neighbor features |
+| `heat.parquet` | 14,322 | `heat` (afternoon °F, NaN if < 50% covered), `heatCover`, `heatFill` (gap-filled, display only), `heatEve` |
+| `features.parquet` | 14,322 | Heat-model features for 2018 (training) and 2021 (current): own-hex fractions, `canopyLag1/3`, `impervLag1/3`, `waterNear`, plus `distHarborKm` |
+| `social.parquet` | 14,322 | `tract, income, poverty, poc, asthma, svi, holc, pop, flood, vulnEq, vulnHealth` |
+| `neighborhoods.parquet` | 279 | Neighborhood properties from the contract except geometry and label points |
+
+**Checks from the first real run (2026-09-26):**
+- Land-weighted canopy: 28.6% (2013), 28.7% (2018), 28.1% (2021). Our 2018 canopy vs. BNIA 2017 canopy across 55 CSAs: correlation 0.999, mean absolute difference 1.2 points.
+- Heat per hex: 87.3–100.6°F (median 94.7), 13.3°F spread; one hex uncovered.
+- Population: neighborhood 2020 counts (total 585,682) spread by building footprint. Tract totals were tried first and put thousands of residents into industrial areas.
+- Tract 24510250600 (industrial port, 34 residents) has its rates set to missing; its 390 hexes get median vulnerability scores.
