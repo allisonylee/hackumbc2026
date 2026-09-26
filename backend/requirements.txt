@@ -4,3 +4,7 @@ httpx
 numpy
 pydantic
 pytest
+rapidfuzz
+slowapi
+pyyaml
+zeus-apple-silicon; sys_platform == "darwin"
