@@ -24,8 +24,8 @@ export type Ramp = ReturnType<typeof ramp>
 export const RAMPS = {
   canopy: ramp(['#6b4226', '#a0703a', '#c9b458', '#7fbf5a', '#2f9e44', '#14532d']),
   heat: ramp(['#fde68a', '#fbbf24', '#f97316', '#dc2626', '#7f1d1d']),
-  // reversed viridis: low income = bright yellow
-  income: ramp(['#fde725', '#5ec962', '#21918c', '#3b528b', '#440154']),
+  // viridis: low income = dark purple, high income = yellow
+  income: ramp(['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725']),
   asthma: ramp(['#f3e8ff', '#d8b4fe', '#a855f7', '#7e22ce', '#3b0764']),
   residual: ramp(['#2563eb', '#93c5fd', '#f5f5f5', '#fca5a5', '#dc2626']),
   cooling: ramp(['#134e4a', '#0f766e', '#14b8a6', '#5eead4', '#ccfbf1']),
