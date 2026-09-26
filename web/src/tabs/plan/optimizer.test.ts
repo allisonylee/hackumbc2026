@@ -7,13 +7,16 @@ import { allocate, baselines, pareto, prepare, type OptInput } from './optimizer
 const hex = (h3: string, over: Partial<Hex>): Hex => ({
   h3, nb: 'A', canopy: 0.2, imperv: 0.5, bldg: 0.2, road: 0.1, heat: 92, heatAnom: 0, heatPred: 92,
   heatResid: 0, spill: 0, income: 50000, poverty: 0.2, poc: 0.5, asthma: 10, svi: 0.5, holc: null,
-  pop: 100, vulnEq: 0.2, vulnHealth: 0.2, flood: false, cap: 3, gains: [0.1, 0.08, 0.06], shap: [],
+  pop: 100, expo: 0, people: 100, vulnEq: 0.2, vulnHealth: 0.2, flood: false, cap: 3, gains: [0.1, 0.08, 0.06], shap: [],
   ...over,
 })
-const sitesFor = (h3: string, n: number, nb = 'A', cost = 1000, util = false): Site[] =>
+// Default sites are small (1 crown unit) with survival 1, so one tree = one gain entry.
+const sitesFor = (h3: string, n: number, nb = 'A', cost = 1000, util = false, over: Partial<Site> = {}): Site[] =>
   Array.from({ length: n }, (_, k) => ({
-    id: `${h3}-${k}`, lng: -76.6, lat: 39.3, h3, type: 'pit', cost, util, width: 5, space: 'Tree Lawn', nb, species: 'Oak',
+    id: `${h3}-${k}`, lng: -76.6, lat: 39.3, h3, type: 'pit', cost, util, width: 5, space: 'Tree Lawn', nb,
+    species: 'Redbud', size: 'small', crown: 1, surv: 1, ...over,
   }))
+const TB = { small: { co2LbYr: 1, stormGalYr: 1, usdYr: 1 }, medium: { co2LbYr: 2, stormGalYr: 2, usdYr: 2 }, large: { co2LbYr: 3, stormGalYr: 3, usdYr: 3 } }
 
 // 5-hex fixture: h1 has the highest gains; h4/h5 are low-income; h5 is in neighborhood "B".
 const hexes: Hex[] = [
@@ -29,8 +32,7 @@ const sites: Site[] = [
 sites[1] = { ...sites[1], util: true }
 const input: OptInput = {
   hexes, sites,
-  species: [{ name: 'Oak', size: 'large' }],
-  treeBenefits: { small: { co2LbYr: 1, stormGalYr: 1, usdYr: 1 }, medium: { co2LbYr: 2, stormGalYr: 2, usdYr: 2 }, large: { co2LbYr: 3, stormGalYr: 3, usdYr: 3 } },
+  treeBenefits: TB,
   nbTes: { A: 80, B: 40 },
 }
 const P = prepare(input)
@@ -78,6 +80,72 @@ describe('allocate', () => {
   })
 })
 
+describe('crown units, survival, exposure and weights', () => {
+  const plan = (hs: Hex[], ss: Site[], p: Partial<Params>) =>
+    allocate(prepare({ hexes: hs, sites: ss, treeBenefits: TB }), { ...base, ...p })
+
+  it('a large tree uses 3 gain entries and a small tree 1', () => {
+    const h = hex('x', { gains: [0.4, 0.3, 0.2, 0.1], cap: 2 })
+    const big = plan([h], sitesFor('x', 1, 'A', 1000, false, { size: 'large', crown: 3 }), { budget: 1000 })
+    expect(big.impact.coolingPersonF).toBeCloseTo((0.4 + 0.3 + 0.2) * 100)
+    const two = plan([h], [...sitesFor('x', 1, 'A', 1000, false, { size: 'large', crown: 3 }),
+      { ...sitesFor('x', 1)[0], id: 'x-s' }], { budget: 2000 })
+    expect(two.impact.coolingPersonF).toBeCloseTo((0.4 + 0.3 + 0.2 + 0.1) * 100) // second tree takes unit 4
+  })
+
+  it('crown units past the end of gains count as zero', () => {
+    const h = hex('x', { gains: [0.4], cap: 1 })
+    const r = plan([h], sitesFor('x', 1, 'A', 1000, false, { size: 'large', crown: 3 }), { budget: 1000 })
+    expect(r.impact.coolingPersonF).toBeCloseTo(40)
+  })
+
+  it('lower survival lowers a site\'s rank and its expected benefit', () => {
+    const hs = [hex('a', { gains: [0.3] , cap: 1 }), hex('b', { gains: [0.3], cap: 1 })]
+    const ss = [...sitesFor('a', 1, 'A', 1000, false, { surv: 0.5 }), ...sitesFor('b', 1, 'A', 1000, false, { surv: 0.9 })]
+    const r = plan(hs, ss, { budget: 1000 })
+    expect(r.siteIds).toEqual(['b-0'])
+    expect(r.impact.expectedSurviving).toBeCloseTo(0.9)
+    expect(r.impact.coolingPersonF).toBeCloseTo(0.9 * 30)
+  })
+
+  it('ranks by exposed people, not residents', () => {
+    const hs = [hex('a', { pop: 100, people: 100 }), hex('b', { pop: 80, people: 160, expo: 1 })]
+    const r = plan(hs, [...sitesFor('a', 3), ...sitesFor('b', 3)], { budget: 1000 })
+    expect(r.siteIds).toEqual(['b-0'])
+    expect(r.impact.residents).toBe(80)
+    expect(r.impact.peopleExposed).toBe(160)
+  })
+
+  it('takes the next affordable site in a hex when the best one does not fit', () => {
+    const h = hex('x', { gains: [0.3, 0.2, 0.1], cap: 2 })
+    const ss = [...sitesFor('x', 1, 'A', 2000, false, { type: 'potential', size: 'large', crown: 3, id: 'x-big' }),
+      ...sitesFor('x', 1, 'A', 1000, false, { id: 'x-small' })]
+    expect(plan([h], ss, { budget: 1000 }).siteIds).toEqual(['x-small'])
+  })
+
+  it('equity weight moves trees; with Heat only, vulnEq changes nothing', () => {
+    const mk = (v: number) => [hex('a', { gains: [0.3, 0.2, 0.1] }), hex('b', { gains: [0.25, 0.2, 0.1], vulnEq: v })]
+    const ss = [...sitesFor('a', 3), ...sitesFor('b', 3)]
+    expect(plan(mk(0.9), ss, { budget: 1000 }).siteIds).toEqual(plan(mk(0.1), ss, { budget: 1000 }).siteIds)
+    expect(plan(mk(0.1), ss, { budget: 1000 }).siteIds).toEqual(['a-0'])
+    const eq = { heat: 1, equity: 1, health: 0, eco: 0 }
+    expect(plan(mk(0.9), ss, { budget: 1000, weights: eq }).siteIds).toEqual(['b-0'])
+  })
+
+  it('scaling all weights by a constant gives an identical plan', () => {
+    const w = { heat: 0.6, equity: 0.4, health: 0.2, eco: 0.3 }
+    const half = { heat: 0.3, equity: 0.2, health: 0.1, eco: 0.15 }
+    expect(allocate(P, { ...base, budget: 6000, weights: half }).siteIds)
+      .toEqual(allocate(P, { ...base, budget: 6000, weights: w }).siteIds)
+  })
+
+  it('eco credit favors larger trees when cooling is equal', () => {
+    const hs = [hex('a', { gains: [0, 0, 0] }), hex('b', { gains: [0, 0, 0] })]
+    const ss = [...sitesFor('a', 1), ...sitesFor('b', 1, 'A', 1000, false, { size: 'large', crown: 3 })]
+    expect(plan(hs, ss, { budget: 1000, weights: { heat: 0, equity: 0, health: 0, eco: 1 } }).siteIds).toEqual(['b-0'])
+  })
+})
+
 describe('pareto and baselines', () => {
   it('pareto sweeps quota 0..1 in 21 steps', () => {
     const pts = pareto(P, { ...base, budget: 6000 })
@@ -108,7 +176,7 @@ describe('runtime on shipped data', () => {
     const dir = resolve(import.meta.dirname, '../../../public/data')
     const load = (f: string) => JSON.parse(readFileSync(resolve(dir, f), 'utf8'))
     const stats = load('stats.json')
-    const Q = prepare({ hexes: load('hexes.json'), sites: load('sites.json'), species: load('species.json'), treeBenefits: stats.treeBenefits })
+    const Q = prepare({ hexes: load('hexes.json'), sites: load('sites.json'), treeBenefits: stats.treeBenefits })
     const p: Params = { ...base, budget: 2_000_000, weights: { heat: 0.6, equity: 0.6, health: 0.6, eco: 0.3 } }
     allocate(Q, p) // warm up
     const t0 = performance.now()

@@ -1,13 +1,18 @@
 // Budget-constrained tree allocation (implementation_plan.md §8.1). Pure functions; runs in a Web Worker.
 //
-// Each hex h has marginal ML cooling gains[k] (°F) for its k-th tree, non-increasing in k, and a list of
-// candidate sites sorted cheapest first. The value per dollar of the k-th tree is therefore non-increasing
-// within a hex, so a heap holding each hex's next tree gives the exact greedy order without re-checks.
-import type { Baselines, Hex, Impact, Params, ParetoPoint, Result, Site, Species, TreeBenefit } from '@/lib/types'
+// Each hex h has marginal ML cooling gains[u] (°F) for its u-th crown unit (25 m²) of new canopy,
+// non-increasing in u, and candidate sites in pipeline order (crown × surv / cost, descending). The k-th tree
+// in a hex takes the next `crown` gain entries (small 1, medium 2, large 3). A site's value is its expected
+// (survival-weighted) cooling for the hex's exposed people, scaled by the priority multiplier, plus a
+// size-dependent eco credit. A heap holds each hex's next affordable site; the best value per dollar is bought
+// until the budget runs out.
+import type { Baselines, Hex, Impact, Params, ParetoPoint, Result, Site, TreeBenefit } from '@/lib/types'
 import { MaxHeap } from './heap'
 
-/** Eco co-benefit of one (medium) tree, on the same 0–1 scale as the best single tree's cooling. */
-export const ECO_PER_TREE_NORM = 0.2
+type Size = Site['size']
+
+/** Eco co-benefit of one medium tree, on the same scale as the best crown unit's cooling (= 1). */
+export const ECO_MEDIUM_NORM = 0.4
 /** Fraction of 20-year benefits delivered at each maturity horizon. */
 export const MATURITY: Record<Params['years'], number> = { 0: 0.15, 10: 0.5, 20: 1.0 }
 export const LOW_INCOME_VULN = 0.5
@@ -15,8 +20,7 @@ export const LOW_INCOME_VULN = 0.5
 export type OptInput = {
   hexes: Hex[]
   sites: Site[]
-  species: Pick<Species, 'name' | 'size'>[]
-  treeBenefits: Record<'small' | 'medium' | 'large', TreeBenefit>
+  treeBenefits: Record<Size, TreeBenefit>
   /** neighborhood → Tree Equity Score (0–100), optional; enables the TES baseline */
   nbTes?: Record<string, number>
 }
@@ -24,13 +28,17 @@ export type OptInput = {
 export type Prepared = {
   hexes: Hex[]
   index: Map<string, number>
-  /** sites per hex index, cheapest first */
+  /** sites per hex index, in contract order (crown × surv / cost desc, ties cheapest) */
   sites: Site[][]
+  /** best single crown unit's person-°F, the cooling normalizer */
   maxHeatVal: number
-  sizeOf: Map<string, 'small' | 'medium' | 'large'>
+  /** eco credit per tree by size, scaled by USFS $ benefits relative to a medium tree */
+  ecoNorm: Record<Size, number>
   treeBenefits: OptInput['treeBenefits']
   nbTes?: Record<string, number>
 }
+
+const density = (s: Site) => (s.crown * s.surv) / s.cost
 
 export function prepare(input: OptInput): Prepared {
   const idx = new Map(input.hexes.map((h, i) => [h.h3, i]))
@@ -39,18 +47,21 @@ export function prepare(input: OptInput): Prepared {
     const i = idx.get(s.h3)
     if (i !== undefined) sites[i].push(s)
   }
-  for (const l of sites) l.sort((a, b) => a.cost - b.cost)
+  // The pipeline already writes this order; re-sorting (stable) guards against unsorted input.
+  for (const l of sites) l.sort((a, b) => density(b) - density(a) || a.cost - b.cost)
   let maxHeatVal = 0
   input.hexes.forEach((h) => {
-    if (h.cap > 0 && h.gains.length) maxHeatVal = Math.max(maxHeatVal, h.gains[0] * h.pop + h.spill)
+    if (h.cap > 0 && h.gains.length) maxHeatVal = Math.max(maxHeatVal, h.gains[0] * h.people + h.spill)
   })
+  const tb = input.treeBenefits
+  const eco = (size: Size) => (ECO_MEDIUM_NORM * tb[size].usdYr) / (tb.medium.usdYr || 1)
   return {
     hexes: input.hexes,
     index: idx,
     sites,
     maxHeatVal: maxHeatVal || 1,
-    sizeOf: new Map(input.species.map((s) => [s.name, s.size])),
-    treeBenefits: input.treeBenefits,
+    ecoNorm: { small: eco('small'), medium: eco('medium'), large: eco('large') },
+    treeBenefits: tb,
     nbTes: input.nbTes,
   }
 }
@@ -63,34 +74,68 @@ function eligible(P: Prepared, p: Params): Eligible {
   const lists = P.hexes.map((h, i) => {
     if (excl.has(h.nb)) return []
     const l = p.avoidUtilities ? P.sites[i].filter((s) => !s.util) : P.sites[i]
-    caps[i] = Math.min(l.length, h.cap, h.gains.length)
+    caps[i] = Math.min(l.length, h.cap, 30)
     return l
   })
   return { lists, caps }
 }
 
-/** Person-°F of cooling from the k-th tree in hex h (own hex + neighbor spillover). */
-const benefit = (h: Hex, k: number) => h.gains[k] * h.pop + h.spill
-
-function value(P: Prepared, h: Hex, k: number, w: Params['weights']) {
-  const cool = benefit(h, k) / P.maxHeatVal
-  return cool * (w.heat + w.equity * h.vulnEq + w.health * h.vulnHealth) + w.eco * ECO_PER_TREE_NORM
+/** °F from `crown` units starting at unit u; entries past the end of gains count as 0. */
+function gainSum(h: Hex, u: number, crown: number) {
+  let g = 0
+  for (let j = u; j < u + crown && j < h.gains.length; j++) g += h.gains[j]
+  return g
 }
 
-/** Greedy over `hexIdx`, continuing from `counts`. Mutates counts/picked; returns dollars spent. */
-function greedy(P: Prepared, E: Eligible, p: Params, hexIdx: number[], budget: number, counts: Int32Array, picked: Site[]) {
+/** Person-°F of cooling (own hex + neighbor spillover) from a tree of `crown` units at unit u, before survival. */
+const benefit = (h: Hex, u: number, crown: number) => gainSum(h, u, crown) * h.people + h.spill * crown
+
+function value(P: Prepared, h: Hex, u: number, s: Site, w: Params['weights']) {
+  const cool = benefit(h, u, s.crown) / P.maxHeatVal
+  return s.surv * (cool * (w.heat + w.equity * h.vulnEq + w.health * h.vulnHealth) + w.eco * P.ecoNorm[s.size])
+}
+
+/** Shared per-plan state across greedy passes. `taken` is a per-hex bitmask over list indices (cap ≤ 30). */
+type State = { units: Int32Array; trees: Int32Array; taken: Int32Array; picked: Site[] }
+
+/** First untaken site in hex i that fits `remaining`, as an index into E.lists[i], or −1. */
+function nextSite(E: Eligible, S: State, i: number, remaining: number) {
+  if (S.trees[i] >= E.caps[i]) return -1
+  const l = E.lists[i]
+  for (let k = 0; k < E.caps[i]; k++) if (!(S.taken[i] & (1 << k)) && l[k].cost <= remaining) return k
+  return -1
+}
+
+/**
+ * Greedy over `hexIdx` with `budget`, continuing from S. Returns dollars spent.
+ * Heap entries are exact until the remaining budget drops below the candidate's cost; then the hex is
+ * re-scored with its next affordable site (skipped sites stay available to later passes).
+ */
+function greedy(P: Prepared, E: Eligible, p: Params, hexIdx: number[], budget: number, S: State) {
   const heap = new MaxHeap()
-  const ratio = (i: number) => value(P, P.hexes[i], counts[i], p.weights) / E.lists[i][counts[i]].cost
-  for (const i of hexIdx) if (counts[i] < E.caps[i]) heap.push(ratio(i), i)
+  const cand = new Int32Array(P.hexes.length).fill(-1)
   let spent = 0
+  const push = (i: number) => {
+    const k = nextSite(E, S, i, budget - spent)
+    cand[i] = k
+    if (k < 0) return
+    const s = E.lists[i][k]
+    heap.push(value(P, P.hexes[i], S.units[i], s, p.weights) / s.cost, i)
+  }
+  for (const i of hexIdx) push(i)
   while (heap.size) {
     const i = heap.pop()
-    const site = E.lists[i][counts[i]]
-    if (spent + site.cost > budget) continue // later sites in this hex cost at least as much: drop the hex
-    spent += site.cost
-    picked.push(site)
-    counts[i]++
-    if (counts[i] < E.caps[i]) heap.push(ratio(i), i)
+    const s = E.lists[i][cand[i]]
+    if (spent + s.cost > budget) {
+      push(i) // candidate no longer fits: try this hex's next affordable site
+      continue
+    }
+    spent += s.cost
+    S.picked.push(s)
+    S.taken[i] |= 1 << cand[i]
+    S.units[i] += s.crown
+    S.trees[i]++
+    push(i)
   }
   return spent
 }
@@ -98,22 +143,26 @@ function greedy(P: Prepared, E: Eligible, p: Params, hexIdx: number[], budget: n
 function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
   const hexIndex = P.index
   const perHex: Record<string, number> = {}
+  const units: Record<string, number> = {}
+  const fByHex: Record<string, number> = {}
   let spent = 0, cooling = 0, lowInc = 0, holcCD = 0, co2 = 0, storm = 0, usd = 0, surviving = 0
   const m = MATURITY[p.years]
   for (const s of picked) {
     const h = P.hexes[hexIndex.get(s.h3)!]
-    const k = perHex[s.h3] ?? 0
-    perHex[s.h3] = k + 1
-    const b = benefit(h, k)
+    const u = units[s.h3] ?? 0
+    units[s.h3] = u + s.crown
+    perHex[s.h3] = (perHex[s.h3] ?? 0) + 1
+    const b = s.surv * benefit(h, u, s.crown)
+    fByHex[s.h3] = (fByHex[s.h3] ?? 0) + s.surv * gainSum(h, u, s.crown)
     spent += s.cost
     surviving += s.surv
     cooling += b
     if (h.vulnEq >= LOW_INCOME_VULN) lowInc += b
     if (h.holc === 'C' || h.holc === 'D') holcCD++
-    const tb = P.treeBenefits[P.sizeOf.get(s.species) ?? 'medium']
-    co2 += tb.co2LbYr * m
-    storm += tb.stormGalYr * m
-    usd += tb.usdYr * m
+    const tb = P.treeBenefits[s.size]
+    co2 += tb.co2LbYr * m * s.surv
+    storm += tb.stormGalYr * m * s.surv
+    usd += tb.usdYr * m * s.surv
   }
   let residents = 0, people = 0, fSum = 0
   const targeted = Object.keys(perHex)
@@ -121,9 +170,7 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
     const h = P.hexes[hexIndex.get(id)!]
     residents += h.pop
     people += h.people
-    let f = 0
-    for (let k = 0; k < perHex[id]; k++) f += h.gains[k]
-    fSum += f
+    fSum += fByHex[id]
   }
   const impact: Impact = {
     trees: picked.length,
@@ -144,16 +191,16 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
 
 export function allocate(P: Prepared, p: Params): Result {
   const E = eligible(P, p)
-  const counts = new Int32Array(P.hexes.length)
-  const picked: Site[] = []
+  const n = P.hexes.length
+  const S: State = { units: new Int32Array(n), trees: new Int32Array(n), taken: new Int32Array(n), picked: [] }
   const all = P.hexes.map((_, i) => i)
   let spent = 0
   if (p.equityQuota > 0) {
     const low = all.filter((i) => P.hexes[i].vulnEq >= LOW_INCOME_VULN)
-    spent = greedy(P, E, p, low, p.budget * Math.min(1, p.equityQuota), counts, picked)
+    spent = greedy(P, E, p, low, p.budget * Math.min(1, p.equityQuota), S)
   }
-  greedy(P, E, p, all, p.budget - spent, counts, picked)
-  return impactOf(P, p, picked)
+  greedy(P, E, p, all, p.budget - spent, S)
+  return impactOf(P, p, S.picked)
 }
 
 export function pareto(P: Prepared, p: Params, steps = 21): ParetoPoint[] {
@@ -177,14 +224,14 @@ function rng(seed: number) {
   }
 }
 
-/** Fill hexes in the given order, cheapest sites first, skipping sites that don't fit. */
+/** Fill hexes in the given order, each hex's sites in list order, skipping sites that don't fit. */
 function fillInOrder(E: Eligible, order: number[], budget: number) {
   const picked: Site[] = []
   let spent = 0
   for (const i of order) {
     for (let k = 0; k < E.caps[i]; k++) {
       const s = E.lists[i][k]
-      if (spent + s.cost > budget) break
+      if (spent + s.cost > budget) continue
       spent += s.cost
       picked.push(s)
     }

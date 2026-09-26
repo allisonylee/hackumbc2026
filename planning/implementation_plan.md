@@ -150,7 +150,7 @@ hackumbc2026/
 
 Keep keys short but readable. Round coordinates to 5 decimals and floats to 3.
 
-> **Contract change applied (2026-09-26):** tree size, survival and exposure fields are in `CONTRACTS.md`, `web/src/lib/types.ts` and the mock. The optimizer (§8.1) still needs to switch to the crown-unit formula.
+> **Contract change applied (2026-09-26):** tree size, survival and exposure fields are in `CONTRACTS.md`, `web/src/lib/types.ts` and the mock. The optimizer (§8.1) uses the crown-unit formula as of 2026-09-26.
 
 ### `hexes.json`: array, one object per H3 res-10 cell (~14–16k)
 ```ts

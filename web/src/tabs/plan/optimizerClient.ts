@@ -38,7 +38,6 @@ function ensureWorker() {
     payload: {
       hexes: data.hexes,
       sites: data.sites,
-      species: data.species.map(({ name, size }) => ({ name, size })),
       treeBenefits: data.stats.treeBenefits,
       nbTes,
     },
