@@ -102,9 +102,9 @@ Built by `python -m pipeline.run` (Stages 0–1, ~25 s). Every file is keyed by 
 |---|---|---|
 | `grid.parquet` | 14,322 | `h3, nb, lat, lng`. Cells whose center is in a neighborhood, plus 45 edge cells holding planting sites |
 | `sites.parquet` | 66,322 | Plantable inventory sites with `type, cost, util, width, space, size, crown, surv, species, h3, nb`, sorted per hex by `crown × surv / cost` |
-| `landcover.parquet` | 17,697 | `canopy, road, bldg, imperv, water, lowveg` × {13, 18, 21}, `valid_m2`, `inGrid`. Includes a 4-ring halo of cells outside the grid (open water) for neighbor features |
+| `landcover.parquet` | 17,697 | `canopy, road, bldg, imperv, water, lowveg, bare` × {13, 18, 21} (canopy + imperv + water + lowveg + bare = 1), `valid_m2`, `inGrid`. Includes a 4-ring halo of cells outside the grid (open water) for neighbor features |
 | `heat.parquet` | 14,322 | `heat` (afternoon °F, NaN if < 50% covered), `heatCover`, `heatFill` (gap-filled, display only), `heatEve` |
-| `features.parquet` | 14,322 | Heat-model features for 2018 (training) and 2021 (current): own-hex fractions, `canopyLag1/3`, `impervLag1/3`, `waterNear`, plus `distHarborKm` |
+| `features.parquet` | 14,322 | Heat-model features for 2018 (training) and 2021 (current): own-hex fractions incl. `bare`, `canopyLag1/3`, `impervLag1/3`, `waterNear`, plus `distHarborKm` |
 | `social.parquet` | 14,322 | `tract, income, poverty, poc, asthma, svi, holc, pop, flood, vulnEq, vulnHealth` |
 | `neighborhoods.parquet` | 279 | Neighborhood properties from the contract except geometry and label points |
 

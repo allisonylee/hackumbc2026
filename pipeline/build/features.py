@@ -31,7 +31,7 @@ def build():
     covered = lc[lc.valid_m2 > 0]
     out = pd.DataFrame({"h3": cells})
     for y in YEARS:
-        for f in ("canopy", "imperv", "bldg", "road", "lowveg"):
+        for f in ("canopy", "imperv", "bldg", "road", "lowveg", "bare"):
             out[f"{f}{y}"] = df[f"{f}{y}"]
         look = {f: dict(zip(covered.h3, covered[f"{f}{y}"])) for f in ("canopy", "imperv", "water")}
         out[f"canopyLag1_{y}"] = disk_mean(cells, look["canopy"], 1)

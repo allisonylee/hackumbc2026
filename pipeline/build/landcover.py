@@ -9,7 +9,8 @@ streams: neighborhood polygons exclude open water, but the city raster covers it
 Groups (codes from lulc_2024-Edition.xml; see pipeline/data/README.md):
   canopy  = all tree canopy, including canopy over roads/structures/other impervious
   road, bldg, imperv = exposed impervious only (imperv = road + bldg + other impervious + extractive + solar)
-  water, lowveg (turf, herbaceous, shrub, herbaceous wetland, crop/pasture), other (barren, bare developed)
+  water, lowveg (turf, herbaceous, shrub, herbaceous wetland, crop/pasture), bare (barren, bare developed, shore;
+  code 28 "Bare Developed" fills most of a few construction-site hexes, e.g. 98% of one Hanlon-Longwood hex in 2018)
 """
 import h3
 import numpy as np
@@ -86,6 +87,7 @@ def build():
         out[f"imperv{k}"] = frac[:, 2] + frac[:, 3] + frac[:, 4]
         out[f"water{k}"] = frac[:, 5]
         out[f"lowveg{k}"] = frac[:, 6]
+        out[f"bare{k}"] = frac[:, 7]
         if k == "21":
             out["valid_m2"] = valid  # 1 m pixels
     print(f"cells: {len(grid_cells):,} grid + {len(halo):,} halo ({(out.valid_m2[~out.inGrid] > 0).sum():,} halo cells have raster)")
