@@ -9,13 +9,17 @@ Answers go through the real app (routing, search, generation), so the figure mat
 
 import argparse
 import json
+import platform
 import statistics
 import time
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from config import Settings
 from main import create_app
+
+OUT = Path(__file__).parent / "data" / "energy_calibration.json"
 
 QUESTIONS = [
     "Why do trees cool streets?",
@@ -61,12 +65,21 @@ def main() -> None:
                 rows.append((q, done["tokens"], j, secs))
                 print(f"{j:7.1f} J  {done['tokens']:4d} tok  {secs:5.1f} s  {j / secs:5.1f} W  {q}")
 
-    joules = [r[2] for r in rows]
-    tokens = sum(r[1] for r in rows)
-    print(f"\n{len(rows)} answers: median {statistics.median(joules):.1f} J "
-          f"({statistics.median(joules) / 3600:.4f} Wh), mean {statistics.mean(joules):.1f} J, "
-          f"range {min(joules):.1f}–{max(joules):.1f} J")
-    print(f"J_PER_TOKEN = {sum(joules) / tokens:.3f}   (total J / generated tokens; includes prompt reading)")
+    # Pass 1 is the fair figure: later passes repeat prompts Ollama has cached, which skips prompt reading.
+    first = rows[:len(QUESTIONS)]
+    summary = {}
+    for label, rs in (("fresh", first), ("all", rows)):
+        joules = [r[2] for r in rs]
+        summary[label] = {"answers": len(rs), "medianJ": round(statistics.median(joules), 1),
+                          "medianWh": round(statistics.median(joules) / 3600, 4),
+                          "minJ": round(min(joules), 1), "maxJ": round(max(joules), 1),
+                          "jPerToken": round(sum(joules) / sum(r[1] for r in rs), 3)}
+        print(f"\n{label}: {summary[label]}")
+    print(f"\nSet J_PER_TOKEN = {summary['fresh']['jPerToken']} (fresh questions; includes prompt reading)")
+    OUT.write_text(json.dumps({"measuredAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "model": settings.model,
+                               "machine": platform.machine(), "method": "zeus-apple-silicon, minus idle baseline",
+                               **summary}, indent=1) + "\n")
+    print(f"wrote {OUT}")
 
 
 if __name__ == "__main__":

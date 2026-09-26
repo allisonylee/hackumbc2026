@@ -27,8 +27,9 @@ class Settings:
     temperature: float = field(default_factory=lambda: float(os.getenv("TEMPERATURE", "0.3")))
     keep_alive: str = field(default_factory=lambda: os.getenv("KEEP_ALIVE", "30m"))
     # Joules per generated token, the fallback estimate when energy can't be measured and ESTIMATE_WATTS
-    # is unset. Calibrated on the Mac with calibrate_energy.py.
-    j_per_token: float = field(default_factory=lambda: float(os.getenv("J_PER_TOKEN", "0.3")))
+    # is unset. From calibrate_energy.py on an M2 MacBook (plugged in, Low Power Mode off), 2026-09-26:
+    # two runs gave 0.51 and 0.71 J/token (incl. prompt reading); 0.6 is their midpoint. Mac-only figure.
+    j_per_token: float = field(default_factory=lambda: float(os.getenv("J_PER_TOKEN", "0.6")))
     # MEASURE_ENERGY=0 skips zeus-apple-silicon even on a Mac (tests; or to compare against the estimate).
     measure_energy: bool = field(default_factory=lambda: os.getenv("MEASURE_ENERGY", "1") != "0")
     # For machines without energy counters (the droplet): estimate = Ollama's generation seconds × this.
