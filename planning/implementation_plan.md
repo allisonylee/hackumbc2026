@@ -150,6 +150,8 @@ hackumbc2026/
 
 Keep keys short but readable. Round coordinates to 5 decimals and floats to 3.
 
+> **Pending contract change (2026-09-26):** the tree-size, survival and exposure additions (`Hex.expo`, `Hex.people`, crown-unit `gains` and `spill`, `Site.size/crown/surv`, the new site sort order, `stats.assumptions`, and the new `impact` fields) are written here but not yet in `CONTRACTS.md`. Apply them on `main` together with `pipeline/mock/make_mock.py`.
+
 ### `hexes.json`: array, one object per H3 res-10 cell (~14–16k)
 ```ts
 type Hex = {
@@ -662,30 +664,49 @@ Session A.
 The optimizer and its tests can be done by Session C, or by Session A after Current State.
 
 ### 8.1 Optimizer (`src/tabs/plan/optimizer.ts` + `optimizer.worker.ts`)
+**How it works:** every candidate site gets a score of value per dollar. The optimizer repeatedly buys the best-scoring site that still fits the budget, then re-scores that hex's next site, which is worth less because of diminishing returns. It stops when the budget runs out. This "greedy" method is near-optimal when returns diminish, and it runs in milliseconds, so the map can update while a slider is being dragged. It uses only precomputed JSON; the heat model never runs in the browser during planning.
+
+A site's **value** is the expected cooling it delivers to people, weighted by who those people are, plus a flat ecological credit:
+- **cooling** = the next `crown` entries of the hex's `gains` (°F) × `people` in the hex, plus neighbor spillover;
+- × **survival**: a tree that dies delivers nothing, so all benefits are multiplied by `surv`;
+- × the **priority multiplier** from the sliders: `w.heat + w.equity × vulnEq + w.health × vulnHealth`;
+- + **eco** = `w.eco` × the USFS per-tree benefit for the tree's size class × `surv`.
+
+**What the "who benefits" sliders do** (put a short version of this in the UI's info popover and the pitch):
+- **Yes, they move the trees.** The sliders change each hex's multiplier, which changes the ranking and so which sites get bought first. Heat alone ranks by cooling × people per dollar. Adding Equity boosts hexes in proportion to `vulnEq`, so a hot, poor block outranks an equally hot, wealthy one. Adding Health does the same with asthma and SVI.
+- **Equity and Health scale cooling; they don't replace it.** A block where a tree cools nothing gets nothing from these sliders. That keeps every plan physically sensible: we never plant a tree that won't cool anyone just because the block scores high on need.
+- **Only the ratios matter.** (1, 1, 0, 0) and (0.5, 0.5, 0, 0) give the same plan. With Heat and Equity both at 1, the most vulnerable hex (`vulnEq = 1`) is worth at most twice an otherwise identical hex with `vulnEq = 0`. Setting Heat to 0 makes need a hard filter: hexes with `vulnEq = 0` get only their eco value.
+- **Eco pulls the other way.** It's a per-tree credit that ignores heat and people, so raising it favors cheap, large-crown, high-survival sites wherever they are, including less populated areas.
+- **The effect is biggest at small and medium budgets.** At large budgets the top hexes fill up (diminishing returns plus limited sites), and plans with different weights converge on the same sites. The Pareto chart shows this trade-off directly.
+- **Soft vs. hard:** the Equity slider is a preference that trades off against cooling. The equity guarantee slider (`equityQuota`) is a hard rule: at least X% of trees go to low-income blocks, whatever the cooling cost.
+
 - [ ] `heap.ts`: a small binary max-heap.
 - [ ] **Precompute on load:**
-  - normalization constants: `maxHeatVal = max(gains[0] × pop)`, and similarly for the other terms;
+  - normalization constants: `maxHeatVal = max(gains[0] × people + spill)` per crown unit, and similarly for the other terms;
   - each hex's cost list, taken from its sorted sites after filters are applied.
-- [ ] **Value of the k-th tree in hex h:**
+- [ ] **Value of the k-th tree in hex h** (site `s = sitesByHex[h][k]`; `u[h]` = crown units already placed in h):
   ```ts
-  const cool = (h.gains[k] * h.pop + h.spill) / maxHeatVal;          // 0–1, ML cooling incl. neighbor spillover
-  const v = cool * (w.heat + w.equity * h.vulnEq + w.health * h.vulnHealth)
-          + w.eco * ECO_PER_TREE_NORM;                                // constant per tree (medium tree)
-  const ratio = v / costs[h][k];
+  const g = sum(h.gains.slice(u[h], u[h] + s.crown));                 // °F from this tree's crown units
+  const cool = (g * h.people + h.spill * s.crown) / maxHeatVal;       // ML cooling incl. neighbor spillover
+  const v = s.surv * (cool * (w.heat + w.equity * h.vulnEq + w.health * h.vulnHealth)
+                      + w.eco * ECO_NORM[s.size]);                    // USFS benefit by size class
+  const ratio = v / s.cost;
   ```
-- [ ] **Lazy greedy:** push `(h, k=0)` for every eligible hex. Pop the best; if it fits the remaining budget, take site `sitesByHex[h][k]` and push `(h, k+1)` if `k+1 < cap`. Continue until the heap is empty or the budget is spent.
+  If `u[h] + s.crown` runs past the end of `gains`, the missing entries count as 0.
+- [ ] **Lazy greedy:** push `(h, k=0)` for every eligible hex. Pop the best; if it fits the remaining budget, take site `sitesByHex[h][k]`, add `s.crown` to `u[h]`, and push `(h, k+1)` if `k+1 < cap`. Continue until the heap is empty or the budget is spent. If a site doesn't fit, try the hex's next site before dropping the hex, since sites differ in cost.
 - [ ] **Filters:** remove hexes in `excludeNbs`. When `avoidUtilities` is on, drop `util` sites, which reduces the hex's cap.
 - [ ] **Equity quota:** if `equityQuota > 0`:
   - Pass 1 runs greedy over hexes with `vulnEq ≥ 0.5` only, with budget × quota.
   - Pass 2 runs over all hexes with the remaining budget, continuing each hex's k from pass 1.
 - [ ] **Impact:**
-  - trees and dollars spent;
-  - `coolingPersonF = Σ gains × pop`;
+  - trees, expected surviving trees (`Σ surv`) and dollars spent;
+  - `coolingPersonF = Σ surv × g × people` (survival-weighted);
+  - people exposed (`Σ people` over targeted hexes), alongside residents;
   - average °F cooling across targeted hexes;
   - residents in targeted hexes;
   - low-income share: benefit in `vulnEq ≥ 0.5` hexes divided by total benefit;
   - HOLC C/D share;
-  - CO₂, stormwater and dollars from the per-tree constants × trees × a maturity factor (0 years → 0.15, 10 → 0.5, 20 → 1.0 of the 20-year values).
+  - CO₂, stormwater and dollars from the per-tree USFS values for each tree's size class × `surv` × a maturity factor (0 years → 0.15, 10 → 0.5, 20 → 1.0 of the 20-year values).
 - [ ] **`pareto()`:** 21 runs with quota from 0 to 1 at the current budget and weights.
 - [ ] **`baselines()`:**
   - random eligible sites up to the budget (seeded RNG);
@@ -696,6 +717,10 @@ The optimizer and its tests can be done by Session C, or by Session A after Curr
   - the budget is never exceeded;
   - no hex exceeds its cap;
   - greedy picks the higher-gain hex first;
+  - a large tree uses 3 gain entries and a small tree 1 (crown-unit accounting);
+  - lower `surv` lowers a site's rank; `surv = 1` everywhere reproduces the no-survival ranking;
+  - with Heat = 1 only, raising a hex's `vulnEq` doesn't change the plan; with Equity > 0 it moves trees toward that hex;
+  - scaling all weights by a constant gives an identical plan;
   - the quota is satisfied;
   - excluded neighborhoods get 0 trees;
   - results are deterministic;
@@ -719,13 +744,13 @@ The optimizer and its tests can be done by Session C, or by Session A after Curr
 - [ ] **Sites layer** (`ScatterplotLayer`, or `IconLayer` with a tree SVG):
   - selected sites **sprout**: radius animates from 0 with delay `min(rank × 3 ms, 1500 ms)`, driven by a `now` state updated with requestAnimationFrame for about 2 s after each result;
   - unselected sites are hidden, or shown as faint dots at high zoom.
-- [ ] **Click a site** → popup with neighborhood, space type and width, suggested species, cost, and a "Why here?" section:
+- [ ] **Click a site** → popup with neighborhood, space type and width, suggested species and size, expected survival, cost, and a "Why here?" section:
   - SHAP bars for the hex;
   - the site's rank;
   - an **"Ask the AI to explain"** button that opens the chat with a prefilled question and the site's stats.
 
 ### 8.4 Impact panel (right)
-- [ ] `StatTile`s with `AnimatedNumber`: trees; $ spent; average −°F in targeted blocks; residents reached; % of benefit to low-income blocks; % in HOLC C/D; CO₂ lb/yr; stormwater gal/yr; $ benefits/yr.
+- [ ] `StatTile`s with `AnimatedNumber`: trees (with "≈N expected to survive" underneath); $ spent; average −°F in targeted blocks; residents reached; people exposed outdoors; % of benefit to low-income blocks; % in HOLC C/D; CO₂ lb/yr; stormwater gal/yr; $ benefits/yr.
 - [ ] **Pareto chart** (Observable Plot):
   - line of cooling vs. low-income share;
   - dot for the current plan, with a hollow dot for each baseline;
