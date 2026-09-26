@@ -3,8 +3,10 @@
 - Hex center → 2024 census tract (nearest tract for the few centers outside all tracts).
 - ACS 2024 5-year: income (median household), poverty (share below poverty line), poc (1 − non-Hispanic white).
 - CDC PLACES 2023 asthma (% adults), CDC SVI 2022 overall percentile (RPL_THEMES; −999 → missing).
-- pop: tract population spread over the tract's grid hexes in proportion to building footprint plus a small
-  land-area floor (w = bldg21 + 0.05 × land share), so parks and water get few residents and tract totals are kept.
+- pop: each neighborhood's 2020 census population (neighborhoods.geojson `Population`) spread over its grid hexes in
+  proportion to building footprint plus a small land-area floor (w = bldg21 + 0.05 × land share). Neighborhoods, not
+  tracts, are the control totals because they separate industrial areas from housing; spreading tract totals by
+  buildings put thousands of residents into port warehouses. ACS supplies rates only.
 - Tracts with fewer than MIN_TRACT_POP residents (the industrial port tract has 34) get their rates set to missing,
   because estimates from a few dozen people are noise; their vulnerability scores fall back to the city median.
 - holc: HOLC grade whose polygon contains the hex center. flood: hex intersects a FEMA 1% zone (A, AE, AO, VE).
@@ -70,7 +72,10 @@ def build():
     bldg = lc.loc[df.h3, "bldg21"].fillna(0).to_numpy()
     land = 1 - lc.loc[df.h3, "water21"].fillna(0).to_numpy()
     df["w"] = bldg + POP_FLOOR * land
-    df["pop"] = df.tract_pop * df.w / df.groupby("GEOID").w.transform("sum")
+    nb_pop = {f["properties"]["Name"]: float(f["properties"].get("Population") or 0)
+              for f in json.load(open(RAW / "boundaries" / "neighborhoods.geojson"))["features"]}
+    df["nb"] = grid.nb.to_numpy()
+    df["pop"] = df.nb.map(nb_pop) * df.w / df.groupby("nb").w.transform("sum")
     df["pop"] = df["pop"].fillna(0)
 
     mi = json.load(open(RAW / "history" / "mappinginequality_us.json"))
