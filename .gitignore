@@ -8,6 +8,6 @@ __pycache__/
 *.pyc
 .env
 emissions.csv
-/planning
 .claude/settings.local.json
 *.tsbuildinfo
+/handoffs

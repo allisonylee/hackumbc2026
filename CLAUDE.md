@@ -13,7 +13,9 @@ Data shapes: [CONTRACTS.md](CONTRACTS.md). Raw data inventory: [pipeline/data/RE
 
 ## Running things
 Python always uses the project venv at `/Users/allisonlee/Desktop/AI/hackumbc2026/.venv` (also from worktrees). Run Python modules from the repo root.
-- Web dev server: `cd web && npm run dev`. Build: `cd web && npm run build`. Tests: `cd web && npx vitest`.
+- Web dev server: `cd web && npm run dev`. Tests: `cd web && npx vitest`.
+- Production build: `cd web && npm run build`. This is the same build DigitalOcean runs, so it must pass before every push to `main`.
+- Preview the production build in a browser: `cd web && npm run build && npx vite preview`. Use this to confirm the built app works, including SPA routes like `/plan` and `/learn` on refresh.
 - Backend: `cd backend && uvicorn main:app --reload`.
 - Pipeline export: `python -m pipeline.export.export_web`.
 - Mock data (until the real export exists): `python -m pipeline.mock.make_mock`.
@@ -22,10 +24,55 @@ Python always uses the project venv at `/Users/allisonlee/Desktop/AI/hackumbc202
 - Only edit your lane's folder: session A → `web/` (and root docs), session B (`feat/pipeline`) → `pipeline/`, session C (`feat/backend`) → `backend/`, `deploy/`, plus `web/src/tabs/plan/` for the optimizer.
 - `CONTRACTS.md` changes happen only on `main`. Update `pipeline/mock/make_mock.py` in the same commit.
 - Commit after every working step.
-- `main` must always build (`cd web && npm run build`): every push to `main` redeploys.
+- `main` must always build: every push to `main` redeploys (once App Platform is connected). Before pushing or merging to `main`, run `cd web && npm run build` and fix any errors. For UI changes, also open the preview and check the browser console for errors.
 - No cloud LLM APIs. The chat uses local Ollama only.
 - Keep `web/public/data` under ~5 MB gzipped.
 - Never hardcode numbers in the UI, story or pitch; read them from `stats.json`.
+
+## Handoffs
+Write a handoff document whenever work may be picked up by someone without this session's memory (the user, or a fresh chat):
+- the session is about to end, or the task is finished;
+- the context window is getting full;
+- work is being paused, interrupted or blocked.
+
+Don't wait to be asked. Write it while there's still room in the context to do it well.
+
+**Where:** always the main checkout, `/Users/allisonlee/Desktop/AI/hackumbc2026/handoffs/`, including from worktrees, so every session finds them in one place. The folder is gitignored. Name files `YYYY-MM-DD-HHMM-<lane>-<short-slug>.md`, where lane is `main`, `pipeline` or `backend`.
+
+**At session start:** read the newest handoff for your lane, if there is one, before doing anything else.
+
+**Template** (fill every section; write "none" rather than deleting one):
+```markdown
+# Agent Report: [Brief Description]
+
+**Date**: YYYY-MM-DD
+**Status**: IN_PROGRESS | INTERRUPTED | BLOCKED | COMPLETED
+**Reason**: [why this handoff is being created]
+
+## Context In
+- Input artifacts used (paths)
+- Plan document, if working from one (path)
+
+## Actions
+- Files created/modified (exact paths, what was done to each)
+- Commands run (exact commands, purpose, outcome)
+- Current phase/task and how far along it is
+
+## Evidence
+- Test/check outputs, verbatim
+- Errors, warnings, partial results
+- Pointers to logs/plots/artifacts
+
+## Context Out
+- All created/modified artifacts (full paths)
+- What's partial vs complete
+
+## Next
+- What the next agent (or the user) should do — a single next task if possible
+- Blockers and what's needed to clear them, if any
+```
+
+Also include the branch/worktree and the last commit hash, and note any uncommitted changes.
 
 ## Gotchas
 - MapLibre must be imported via `@/lib/maplibre` and passed as `<Map mapLib={maplibregl}>`. The default build's inline worker breaks under Vite's dev prebundling.
