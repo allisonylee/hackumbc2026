@@ -70,14 +70,11 @@ export function hexColor(h: Hex, o: HexColorOpts): RGBA {
 /** elevationScale multiplier animating 0 → 1 once per session, when the map is ready. */
 let hasRisen = false
 function useRise(ready: boolean) {
-  const [rise, setRise] = useState(hasRisen ? 1 : 0)
+  const [rise, setRise] = useState(() => (hasRisen || prefersReducedMotion() ? 1 : 0))
   useEffect(() => {
     if (!ready || hasRisen) return
     hasRisen = true
-    if (prefersReducedMotion()) {
-      setRise(1)
-      return
-    }
+    if (prefersReducedMotion()) return
     const t0 = performance.now()
     let raf = 0
     const step = (now: number) => {
