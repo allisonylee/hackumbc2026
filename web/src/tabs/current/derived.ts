@@ -24,6 +24,8 @@ export type Derived = {
   domains: { canopy: Domain; heat: Domain; income: Domain; asthma: Domain; resid: Domain }
   /** °F; heatAnom is measured against this */
   cityMedianF: number
+  /** metres of extrusion per °F above the median, scaled so the hottest blocks reach a fixed height */
+  heightPerF: number
   nbBounds: Map<string, Bounds>
   hexesByNb: Map<string, Hex[]>
   nbList: NbProps[]
@@ -59,6 +61,9 @@ function bboxOf(g: { type: string; coordinates: unknown }): Bounds {
   return [[x0, y0], [x1, y1]]
 }
 
+/** Column height (m) for the 98th-percentile heat anomaly. */
+const TOP_HEIGHT_M = 250
+
 const cache = new WeakMap<AppData, Derived>()
 
 export function getDerived(d: AppData): Derived {
@@ -79,6 +84,9 @@ export function getDerived(d: AppData): Derived {
 
   const residAbs = domainOf(d.hexes.map((h) => (h.heatResid == null ? null : Math.abs(h.heatResid))), 0, 0.98)[1] || 1
 
+  const anomHi = domainOf(d.hexes.map((h) => h.heatAnom))[1]
+  const heightPerF = TOP_HEIGHT_M / (anomHi > 0 ? anomHi : 1)
+
   const canopyHi = domainOf(d.hexes.map((h) => h.canopy))[1]
   const out: Derived = {
     domains: {
@@ -89,6 +97,7 @@ export function getDerived(d: AppData): Derived {
       resid: [-residAbs, residAbs],
     },
     cityMedianF,
+    heightPerF,
     nbBounds: new Map(d.nbs.features.map((f) => [f.properties.name, bboxOf(f.geometry)])),
     hexesByNb,
     nbList: d.nbs.features.map((f) => f.properties),

@@ -16,8 +16,6 @@ import { before, EMPTY_TAB_LAYERS, type TabLayers, type Tooltip } from '@/map/ty
 import { useDerived, type Derived } from './derived'
 import { focusNb, noteViewport, prefersReducedMotion, setHoveredIfChanged, useCurrentUi } from './ui'
 
-/** metres of extrusion per °F above the city median */
-const HEIGHT_PER_F = 45
 const RISE_MS = 1800
 export const LABEL_MIN_ZOOM = 12.5
 export const SITES_MIN_ZOOM = 14
@@ -146,7 +144,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
       getHexagon: (d) => d.h3,
       extruded: true,
       coverage: 0.9,
-      elevationScale: HEIGHT_PER_F * rise,
+      elevationScale: derived.heightPerF * rise,
       getElevation: (d) => (elevOn ? Math.max(0, d.heatAnom + (deltas?.get(d.h3) ?? 0)) : 0),
       getFillColor: (d) => hexColor(d, opts),
       opacity: hexOpacity,
