@@ -20,6 +20,8 @@ class Settings:
     )
     rate_limit: str = field(default_factory=lambda: os.getenv("RATE_LIMIT", "10/minute"))
     num_predict: int = field(default_factory=lambda: int(os.getenv("NUM_PREDICT", "300")))
+    # Ollama's default is 4096; four ~400-word source chunks + facts + history can exceed it.
+    num_ctx: int = field(default_factory=lambda: int(os.getenv("NUM_CTX", "8192")))
     temperature: float = field(default_factory=lambda: float(os.getenv("TEMPERATURE", "0.3")))
     keep_alive: str = field(default_factory=lambda: os.getenv("KEEP_ALIVE", "30m"))
     # Joules per generated token for the estimate when energy can't be measured.

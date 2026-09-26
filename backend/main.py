@@ -21,6 +21,7 @@ from slowapi.util import get_remote_address
 from config import MAX_CHARS, MAX_MESSAGES, Settings
 from energy import estimate_wh
 from llm import OllamaError, Usage, build_messages, stream_answer
+from rag import Index, format_sources, retrieve, search_query
 
 log = logging.getLogger("canopy")
 
@@ -66,9 +67,17 @@ def line(obj: dict) -> bytes:
     return (json.dumps(obj, ensure_ascii=False) + "\n").encode()
 
 
-def create_app(settings: Settings | None = None, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
-    """`transport` lets tests swap in a fake Ollama."""
+_UNSET = object()
+
+
+def create_app(
+    settings: Settings | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
+    index: "Index | None | object" = _UNSET,
+) -> FastAPI:
+    """`transport` lets tests swap in a fake Ollama; `index` a corpus (None = no sources)."""
     settings = settings or Settings()
+    corpus = Index.load(settings) if index is _UNSET else index
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -96,12 +105,16 @@ def create_app(settings: Settings | None = None, transport: httpx.AsyncBaseTrans
     @limiter.limit(settings.rate_limit)
     async def chat(request: Request, body: ChatRequest):
         history = [m.model_dump() for m in body.messages]
-        messages = build_messages(history)  # retrieval and routing arrive in steps 3–4
+        client = request.app.state.ollama
 
         async def events() -> AsyncIterator[bytes]:
-            yield line({"type": "sources", "items": []})
+            # Routing to neighborhood/site facts arrives in step 4.
+            hits = await retrieve(corpus, client, settings, search_query(history))
+            items, sources = format_sources(hits)
+            messages = build_messages(history, sources)
+            yield line({"type": "sources", "items": items})
             try:
-                async for part in stream_answer(request.app.state.ollama, settings, messages):
+                async for part in stream_answer(client, settings, messages):
                     if isinstance(part, Usage):
                         yield line({
                             "type": "done",
