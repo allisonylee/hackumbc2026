@@ -106,7 +106,9 @@ export function paretoNote(points: ParetoPoint[], maxLoss = 0.05): ParetoNote | 
 
 export function paretoNoteText(n: ParetoNote) {
   const loss = n.lossPct < 1 ? 'less than 1%' : `only ${n.lossPct.toFixed(0)}%`
-  return `The first ${n.gainPts.toFixed(0)} points of equity (${(n.fromShare * 100).toFixed(0)}% → ${(n.toShare * 100).toFixed(0)}% of benefit to low-income blocks) cost ${loss} of cooling.`
+  const from = Math.round(n.fromShare * 100)
+  const to = Math.round(n.toShare * 100)
+  return `The first ${to - from} points of equity (${from}% → ${to}% of benefit to low-income blocks) cost ${loss} of cooling.`
 }
 
 // ---------- Baselines table ----------
