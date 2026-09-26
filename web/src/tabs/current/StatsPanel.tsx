@@ -136,21 +136,37 @@ function CorrHeatmap({ stats }: { stats: Stats }) {
   const shown = hover ?? null
   return (
     <div>
+      <div className="mb-2 text-[11px] text-white/70">
+        Correlation between neighborhood measures <span className="text-white/45">(r, −1 to +1)</span>
+      </div>
       <div className="flex gap-2">
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${n}, ${cell}px)`, gridAutoRows: `${cell}px` }} onPointerLeave={() => setHover(null)}>
-          {matrix.flatMap((row, i) =>
-            row.map((r, j) => (
-              <div
-                key={`${i}-${j}`}
-                title={`${varLabel(vars[i])} × ${varLabel(vars[j])}: r = ${r.toFixed(2)}`}
-                onPointerEnter={() => setHover([i, j])}
-                className={cn('border border-black/40', shown && (shown[0] === i || shown[1] === j) && 'border-white/60')}
-                style={{ background: toCss(RAMPS.residual((r + 1) / 2)) }}
-              />
-            )),
-          )}
+        <div>
+          <div className="grid items-end" style={{ gridTemplateColumns: `repeat(${n}, ${cell}px)` }} aria-hidden>
+            {vars.map((v, j) => (
+              <span
+                key={v}
+                className={cn('mb-1 justify-self-center whitespace-nowrap text-[10px] leading-none text-white/55', shown?.[1] === j && 'text-white')}
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+              >
+                {varLabel(v)}
+              </span>
+            ))}
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${n}, ${cell}px)`, gridAutoRows: `${cell}px` }} onPointerLeave={() => setHover(null)}>
+            {matrix.flatMap((row, i) =>
+              row.map((r, j) => (
+                <div
+                  key={`${i}-${j}`}
+                  title={`${varLabel(vars[i])} × ${varLabel(vars[j])}: r = ${r.toFixed(2)}`}
+                  onPointerEnter={() => setHover([i, j])}
+                  className={cn('border border-black/40', shown && (shown[0] === i || shown[1] === j) && 'border-white/60')}
+                  style={{ background: toCss(RAMPS.residual((r + 1) / 2)) }}
+                />
+              )),
+            )}
+          </div>
         </div>
-        <div className="flex flex-col text-[10px] text-white/55" style={{ gap: 0 }}>
+        <div className="flex flex-col self-end text-[10px] text-white/55" style={{ gap: 0 }}>
           {vars.map((v, i) => (
             <span key={v} className={cn('truncate leading-none', shown?.[0] === i && 'text-white')} style={{ height: cell, lineHeight: `${cell}px` }}>
               {varLabel(v)}
