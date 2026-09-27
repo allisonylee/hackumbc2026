@@ -132,11 +132,4 @@ export function parseNbParam(search: string, names: Iterable<string>): string | 
   return null
 }
 
-/** Absolute share link for the Learn tab, with the neighborhood encoded as ?nb=. */
-export function shareUrl(origin: string, base: string, nb: string | null) {
-  const u = new URL('learn', new URL(base || '/', origin))
-  if (nb) u.searchParams.set('nb', nb)
-  return u.toString()
-}
-
 export const fmtDist = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`)

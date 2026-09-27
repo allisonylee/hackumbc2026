@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { NbProps, Site } from '@/lib/types'
 import {
-  boundsOf, fitView, haversineM, hottestCoolest, nearestSites, offsetCamera, parseNbParam, quantile, shareUrl,
+  boundsOf, fitView, haversineM, hottestCoolest, nearestSites, offsetCamera, parseNbParam, quantile,
 } from './helpers'
 
 const site = (id: string, lng: number, lat: number, nb = 'A'): Site => ({
@@ -104,17 +104,11 @@ describe('fitView', () => {
   })
 })
 
-describe('share links', () => {
-  it('round-trips the neighborhood', () => {
-    const url = shareUrl('https://example.org', '/', 'Sandtown-Winchester')
-    expect(url).toBe('https://example.org/learn?nb=Sandtown-Winchester')
-    expect(parseNbParam(new URL(url).search, ['Sandtown-Winchester'])).toBe('Sandtown-Winchester')
-  })
-  it('encodes spaces and matches case-insensitively', () => {
-    const url = shareUrl('https://example.org', '/', 'Broadway East')
-    expect(parseNbParam(new URL(url).search, ['Broadway East'])).toBe('Broadway East')
+describe('parseNbParam', () => {
+  it('matches the neighborhood case-insensitively and rejects unknown names', () => {
+    expect(parseNbParam('?nb=Sandtown-Winchester', ['Sandtown-Winchester'])).toBe('Sandtown-Winchester')
     expect(parseNbParam('?nb=broadway%20east', ['Broadway East'])).toBe('Broadway East')
     expect(parseNbParam('?nb=Nowhere', ['Broadway East'])).toBeNull()
-    expect(shareUrl('https://example.org', '/', null)).toBe('https://example.org/learn')
+    expect(parseNbParam('', ['Broadway East'])).toBeNull()
   })
 })

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useReducedMotion } from 'motion/react'
 import {
-  CalendarDays, Check, ChevronsUpDown, Copy, ExternalLink, HandHeart, LocateFixed, MapPin, MessageCircle, Shovel,
+  CalendarDays, ChevronsUpDown, ExternalLink, HandHeart, LocateFixed, MapPin, MessageCircle, Shovel,
   Sprout, TreeDeciduous, Users,
 } from 'lucide-react'
 import { useStore } from '@/store'
@@ -13,7 +13,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { fmtF, fmtInt, fmtPct } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { boundsOf, fmtDist, haversineM, nearestSites, parseNbParam, shareUrl, type LngLat, type NearSite } from './helpers'
+import { boundsOf, fmtDist, haversineM, nearestSites, parseNbParam, type LngLat, type NearSite } from './helpers'
 import { useLearn } from './learnStore'
 import { scrollToHelp } from './nav'
 import { resolveCamera, type Viewport } from './viewport'
@@ -86,7 +86,6 @@ export default function TakeAction({ active, vp }: { active: boolean; vp: Viewpo
       .filter((s): s is NonNullable<typeof s> => !!s)
       .map((site) => ({ site, distM: haversineM(o, [site.lng, site.lat]) }))
   }, [data, help.siteIds, help.origin])
-  const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
 
   const names = useMemo(
     () => (data ? data.nbs.features.map((f) => f.properties.name).sort((a, b) => a.localeCompare(b)) : []),
@@ -190,22 +189,6 @@ export default function TakeAction({ active, vp }: { active: boolean; vp: Viewpo
   }
 
   const nbProps = help.nb ? data?.nbByName.get(help.nb)?.properties : undefined
-  const share = async () => {
-    if (!data) return
-    const url = shareUrl(window.location.origin, import.meta.env.BASE_URL, help.nb)
-    const c = data.stats.city
-    const text = nbProps
-      ? `${nbProps.name}: ${fmtPct(nbProps.canopy)} tree canopy (city goal ${fmtPct(c.canopyGoal)}), ${fmtF(nbProps.heat)} on the 2018 heat-watch afternoon, and ${fmtInt(nbProps.sites)} empty street-tree sites. See where new trees would cool Baltimore most:`
-      : `Baltimore has ${fmtPct(c.canopy)} tree canopy against a ${fmtPct(c.canopyGoal)} goal, and ${fmtInt(c.emptySites)} empty street-tree sites. See where new trees would cool the city most:`
-    try {
-      await navigator.clipboard.writeText(`${text} ${url}`)
-      setCopied('ok')
-    } catch {
-      setCopied('fail')
-    }
-    window.setTimeout(() => setCopied(null), 2500)
-  }
-
   if (!data) return null
 
   return (
@@ -297,10 +280,6 @@ export default function TakeAction({ active, vp }: { active: boolean; vp: Viewpo
           <a href={LINKS.streetTree} target="_blank" rel="noopener noreferrer">
             <TreeDeciduous /> Request a free street tree
           </a>
-        </Button>
-        <Button size="lg" variant="outline" onClick={share}>
-          {copied === 'ok' ? <Check /> : <Copy />}
-          {copied === 'ok' ? 'Link copied' : copied === 'fail' ? 'Copy failed' : help.nb ? `Share ${help.nb}` : 'Share'}
         </Button>
       </div>
       {nbProps && (
