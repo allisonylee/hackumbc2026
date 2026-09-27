@@ -15,7 +15,21 @@ type Size = Site['size']
 export const ECO_MEDIUM_NORM = 0.4
 /** Fraction of 20-year benefits delivered at each maturity horizon. */
 export const MATURITY: Record<Params['years'], number> = { 0: 0.15, 10: 0.5, 20: 1.0 }
-export const LOW_INCOME_VULN = 0.5
+
+/**
+ * Income cut-off for "low-income" blocks: the resident-weighted median of tract median household income, so
+ * low-income blocks hold the poorer half of residents. Used by the equity guarantee and the low-income share.
+ */
+export function lowIncomeThreshold(hexes: Hex[]): number {
+  const v = hexes.filter((h) => h.income != null && h.pop > 0).sort((a, b) => a.income! - b.income!)
+  const total = v.reduce((a, h) => a + h.pop, 0)
+  let cum = 0
+  for (const h of v) {
+    cum += h.pop
+    if (cum >= total / 2) return h.income!
+  }
+  return 0
+}
 
 export type OptInput = {
   hexes: Hex[]
@@ -36,6 +50,8 @@ export type Prepared = {
   ecoNorm: Record<Size, number>
   treeBenefits: OptInput['treeBenefits']
   nbTes?: Record<string, number>
+  /** 1 where the hex's tract income is below `lowIncomeThreshold` */
+  lowIncome: Uint8Array
 }
 
 const density = (s: Site) => (s.crown * s.surv) / s.cost
@@ -54,6 +70,8 @@ export function prepare(input: OptInput): Prepared {
     if (h.cap > 0 && h.gains.length) maxHeatVal = Math.max(maxHeatVal, h.gains[0] * h.pop + h.spill)
   })
   const tb = input.treeBenefits
+  const cut = lowIncomeThreshold(input.hexes)
+  const lowIncome = Uint8Array.from(input.hexes, (h) => (h.income != null && h.income < cut ? 1 : 0))
   const eco = (size: Size) => (ECO_MEDIUM_NORM * tb[size].usdYr) / (tb.medium.usdYr || 1)
   return {
     hexes: input.hexes,
@@ -63,6 +81,7 @@ export function prepare(input: OptInput): Prepared {
     ecoNorm: { small: eco('small'), medium: eco('medium'), large: eco('large') },
     treeBenefits: tb,
     nbTes: input.nbTes,
+    lowIncome,
   }
 }
 
@@ -156,7 +175,8 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
   let spent = 0, cooling = 0, lowInc = 0, holcCD = 0, co2 = 0, storm = 0, usd = 0, surviving = 0
   const m = MATURITY[p.years]
   for (const s of picked) {
-    const h = P.hexes[hexIndex.get(s.h3)!]
+    const hi = hexIndex.get(s.h3)!
+    const h = P.hexes[hi]
     const u = units[s.h3] ?? 0
     units[s.h3] = u + s.crown
     perHex[s.h3] = (perHex[s.h3] ?? 0) + 1
@@ -165,7 +185,7 @@ function impactOf(P: Prepared, p: Params, picked: Site[]): Result {
     spent += s.cost
     surviving += s.surv
     cooling += b
-    if (h.vulnEq >= LOW_INCOME_VULN) lowInc += b
+    if (P.lowIncome[hi]) lowInc += b
     if (h.holc === 'C' || h.holc === 'D') holcCD++
     const tb = P.treeBenefits[s.size]
     co2 += tb.co2LbYr * m * s.surv
@@ -202,7 +222,7 @@ export function allocate(P: Prepared, p: Params): Result {
   const all = P.hexes.map((_, i) => i)
   let spent = 0
   if (p.equityQuota > 0) {
-    const low = all.filter((i) => P.hexes[i].vulnEq >= LOW_INCOME_VULN)
+    const low = all.filter((i) => P.lowIncome[i])
     spent = greedy(P, E, p, low, p.budget * Math.min(1, p.equityQuota), S)
   }
   greedy(P, E, p, all, p.budget - spent, S)

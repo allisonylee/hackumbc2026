@@ -12,6 +12,7 @@ import { fmtCompact, fmtInt, fmtUsd } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Params, Site, Weights } from '@/lib/types'
 import { avgSiteCost } from './optimizerClient'
+import { lowIncomeThreshold } from './optimizer'
 import {
   BUDGET_MAX, BUDGET_MIN, PRESETS, SLIDER_STEPS, WEIGHT_KEYS, budgetToSlider, lerpWeights, matchPreset, niceBudget, sliderToBudget,
 } from './logic'
@@ -225,6 +226,8 @@ function WeightsControl() {
 function RulesControl() {
   const p = useStore((s) => s.plan.params)
   const setParams = useStore((s) => s.setParams)
+  const data = useStore((s) => s.data)
+  const incomeCut = useMemo(() => (data ? lowIncomeThreshold(data.hexes) : null), [data])
   return (
     <>
       <Section title="Equity guarantee">
@@ -242,7 +245,10 @@ function RulesControl() {
           aria-label="Equity guarantee"
           className="[&_[data-slot=slider-range]]:bg-equity"
         />
-        <p className="text-[10px] text-white/40">{p.equityQuota > 0 ? 'Hard rule: filled first, whatever the cooling cost.' : 'Off. Drag to require a minimum share.'}</p>
+        <p className="text-[10px] leading-snug text-white/40">
+          {p.equityQuota > 0 ? 'Hard rule: filled first, whatever the cooling cost.' : 'Off. Drag to require a minimum share.'}
+          {incomeCut ? ` Low-income = tract median household income below ${fmtUsd(incomeCut)}, the city median by residents.` : ''}
+        </p>
       </Section>
       <Section title="Where">
         <NbExclude />

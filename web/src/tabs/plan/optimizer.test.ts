@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Hex, Params, Site } from '@/lib/types'
-import { allocate, baselines, pareto, prepare, type OptInput } from './optimizer'
+import { allocate, baselines, lowIncomeThreshold, pareto, prepare, type OptInput } from './optimizer'
 
 const hex = (h3: string, over: Partial<Hex>): Hex => ({
   h3, nb: 'A', canopy: 0.2, imperv: 0.5, bldg: 0.2, road: 0.1, heat: 92, heatAnom: 0, heatPred: 92,
@@ -23,8 +23,8 @@ const hexes: Hex[] = [
   hex('h1', { gains: [0.5, 0.4, 0.3] }),
   hex('h2', { gains: [0.2, 0.1, 0.05] }),
   hex('h3', { gains: [0.05, 0.04, 0.03], canopy: 0.05 }),
-  hex('h4', { gains: [0.15, 0.1, 0.05], vulnEq: 0.8, holc: 'D' }),
-  hex('h5', { gains: [0.12, 0.1, 0.08], vulnEq: 0.9, nb: 'B', cap: 2 }),
+  hex('h4', { gains: [0.15, 0.1, 0.05], vulnEq: 0.8, income: 25000, holc: 'D' }),
+  hex('h5', { gains: [0.12, 0.1, 0.08], vulnEq: 0.9, income: 25000, nb: 'B', cap: 2 }),
 ]
 const sites: Site[] = [
   ...sitesFor('h1', 3), ...sitesFor('h2', 3), ...sitesFor('h3', 3), ...sitesFor('h4', 3), ...sitesFor('h5', 2, 'B'),
@@ -37,6 +37,20 @@ const input: OptInput = {
 }
 const P = prepare(input)
 const base: Params = { budget: 5000, weights: { heat: 1, equity: 0, health: 0, eco: 0 }, equityQuota: 0, excludeNbs: [], avoidUtilities: false, years: 20 }
+
+describe('lowIncomeThreshold', () => {
+  it('is the resident-weighted median income', () => {
+    expect(lowIncomeThreshold(hexes)).toBe(50000)
+    expect(Array.from(P.lowIncome)).toEqual([0, 0, 0, 1, 1])
+    // weighting: one crowded poor hex outweighs two sparse rich ones
+    const w = [hex('a', { income: 20000, pop: 300 }), hex('b', { income: 90000, pop: 50 }), hex('c', { income: 80000, pop: 50 })]
+    expect(lowIncomeThreshold(w)).toBe(20000)
+  })
+
+  it('ignores hexes without income or residents', () => {
+    expect(lowIncomeThreshold([hex('a', { income: null }), hex('b', { income: 40000, pop: 0 }), hex('c', { income: 60000 })])).toBe(60000)
+  })
+})
 
 describe('allocate', () => {
   it('never exceeds the budget', () => {
