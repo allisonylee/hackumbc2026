@@ -36,6 +36,8 @@ const LABEL_DX = 0.045
 const LABEL_DY = 0.012
 const rgba = (c: RGB | readonly number[], a: number): RGBA => [c[0], c[1], c[2], a]
 const CLEAR: RGBA = [0, 0, 0, 0]
+/** Markers in the flat hexes' plane draw on top, or they flicker (z-fight) while the camera moves. */
+const ON_TOP = { depthCompare: 'always' } as const
 const HOLC_D_LINE: RGBA = [...HOLC_COLORS.D, 255] as RGBA
 /** Beats that show the full A–D HOLC shading (with the hexes hidden). */
 const HOLC_SHADED = new Set<Beat>(['history', 'echo'])
@@ -254,8 +256,7 @@ export function useLearnLayers(active: boolean): TabLayers {
           updateTriggers: { getRadius: [on, opt], getFillColor: [opt] },
           transitions: { getRadius: t(700), getFillColor: t(700) },
           pickable: false,
-          // Always on top: the dots sit in the flat hexes' plane and would otherwise flicker (z-fight).
-          parameters: { depthCompare: 'always' },
+          parameters: ON_TOP,
           ...before(beforeId),
         }),
       )
@@ -273,6 +274,7 @@ export function useLearnLayers(active: boolean): TabLayers {
             getFillColor: rgba(BRAND.canopy, 60),
             transitions: { getRadius: { duration: t(600), enter: () => [0] } },
             pickable: false,
+            parameters: ON_TOP,
           }),
           new ScatterplotLayer<Site>({
             id: 'learn-help-sites',
@@ -287,6 +289,7 @@ export function useLearnLayers(active: boolean): TabLayers {
             getLineWidth: 2,
             transitions: { getRadius: { duration: t(600), enter: () => [0] } },
             pickable: true,
+            parameters: ON_TOP,
             autoHighlight: true,
           }),
         )
@@ -305,6 +308,7 @@ export function useLearnLayers(active: boolean): TabLayers {
             lineWidthUnits: 'pixels',
             getLineWidth: 2,
             pickable: false,
+            parameters: ON_TOP,
           }),
         )
       }
