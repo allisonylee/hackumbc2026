@@ -84,7 +84,7 @@ export function ModelCardContent({ stats }: { stats: Stats }) {
       </section>
 
       <p className="rounded-lg border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 text-xs text-emerald-100/90">
-        Trained in {m.trainSeconds} s on a laptop CPU, using ≈{m.trainWh} Wh.
+        Training used ≈{m.trainWh.toPrecision(3)} Wh on a laptop CPU.
       </p>
 
       <section>

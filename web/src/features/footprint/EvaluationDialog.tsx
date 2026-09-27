@@ -197,8 +197,7 @@ function ModelValidation({ stats }: { stats: Stats }) {
       <p className="text-xs text-white/50">
         Target: {m.target} ({m.date}). {fmtInt(m.nTrain)} hexes, {m.features.length} features (
         {m.features.slice(0, 4).map(featureLabel).join(', ')}
-        {m.features.length > 4 ? ', …' : ''}). Trained in {m.trainSeconds < 60 ? `${m.trainSeconds.toFixed(0)} s` : `${(m.trainSeconds / 60).toFixed(1)} min`}{' '}
-        using {m.trainWh.toPrecision(2)} Wh.
+        {m.features.length > 4 ? ', …' : ''}). Training used {m.trainWh.toPrecision(3)} Wh.
       </p>
 
       <Section title="Does it predict places it hasn't seen?" icon={<Gauge className="size-4 text-emerald-400" aria-hidden />}>
