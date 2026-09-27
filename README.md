@@ -1,4 +1,4 @@
-# Baltimore Tree Planting Planner
+# A Tree Grows in Baltimore
 
 hackUMBC 2026. Shows where Baltimore is hottest and least shaded, and plans where new street trees would cool the most people for a given budget.
 

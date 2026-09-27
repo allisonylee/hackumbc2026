@@ -1,7 +1,7 @@
 ---
 title: "How the app's heat model works"
 url: https://github.com/allisonylee/hackumbc2026
-source: Baltimore Tree Planting Planner (hackUMBC 2026)
+source: A Tree Grows in Baltimore (hackUMBC 2026)
 ---
 
 The app uses a machine-learning model to estimate how hot each block gets on a summer afternoon, and how much cooler it would be with more trees. It learns from real air temperatures that volunteers measured across Baltimore on August 29, 2018, during NOAA's Heat Watch campaign.

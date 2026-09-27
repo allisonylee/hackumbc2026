@@ -21,7 +21,7 @@ export function LoadingScreen({ progress, error }: { progress: number; error?: s
           initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.85, type: 'spring', stiffness: 120 }}
         />
       </svg>
-      <div className="mt-4 font-display text-xl font-semibold tracking-tight">Baltimore Tree Planner</div>
+      <div className="mt-4 font-display text-xl font-semibold tracking-tight">A Tree Grows in Baltimore</div>
       {error ? (
         <div className="mt-3 max-w-sm text-center text-sm text-rose-300">Couldn't load the map data: {error}</div>
       ) : (

@@ -1,7 +1,7 @@
 ---
 title: "How the Canopy Guide chat works and what it costs in energy"
 url: https://github.com/allisonylee/hackumbc2026
-source: Baltimore Tree Planting Planner (hackUMBC 2026)
+source: A Tree Grows in Baltimore (hackUMBC 2026)
 ---
 
 Canopy Guide is the chat assistant in this app. It runs a small open language model, Qwen 3.5 with about 2 billion parameters, through Ollama on either a laptop or one small server. No question is sent to a cloud AI service.

@@ -1,4 +1,4 @@
-# Baltimore Tree Planting Planner (hackUMBC 2026)
+# A Tree Grows in Baltimore (hackUMBC 2026)
 
 A web app that shows where Baltimore is hottest and least shaded, and plans where new street trees would cool the most people for a given budget. It uses an ML heat model, an equity-aware optimizer, and a small local-LLM chat for learning.
 

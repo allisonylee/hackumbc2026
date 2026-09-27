@@ -128,7 +128,7 @@ def test_chat_puts_facts_first_in_sources():
         res = c.post("/api/chat", json={"messages": [{"role": "user", "content": "Why is Broadway East hot?"}]})
     ev = [json.loads(l) for l in res.text.splitlines()]
     assert ev[0]["items"][0] == {"n": 1, "title": "App data: Broadway East neighborhood", "url": "https://app.test"}
-    assert "[1] App data: Broadway East neighborhood (Baltimore Tree Planting Planner)" in seen[0]["messages"][-1]["content"]
+    assert "[1] App data: Broadway East neighborhood (A Tree Grows in Baltimore)" in seen[0]["messages"][-1]["content"]
 
 
 def test_comparison_fact_does_the_arithmetic():

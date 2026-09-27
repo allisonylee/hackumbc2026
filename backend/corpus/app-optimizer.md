@@ -1,7 +1,7 @@
 ---
 title: "How the Plan tab chooses where to plant trees"
 url: https://github.com/allisonylee/hackumbc2026
-source: Baltimore Tree Planting Planner (hackUMBC 2026)
+source: A Tree Grows in Baltimore (hackUMBC 2026)
 ---
 
 The Plan tab picks specific vacant planting sites from Baltimore's street-tree inventory to get the most benefit for a budget. It does not use AI; it's an optimizer that runs in your browser in a fraction of a second.

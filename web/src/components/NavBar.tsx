@@ -18,7 +18,7 @@ export function NavBar() {
       <div className="glass pointer-events-auto flex items-center gap-1 px-2 py-1.5">
         <div className="flex items-center gap-2 px-2 pr-3">
           <TreeDeciduous className="size-5 text-emerald-400" aria-hidden />
-          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Baltimore Tree Planner</span>
+          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">A Tree Grows in Baltimore</span>
         </div>
         <nav className="flex items-center" aria-label="Tabs">
           {TABS.map((t) => (

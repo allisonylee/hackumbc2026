@@ -1,7 +1,7 @@
 ---
-title: "What this app does: the Baltimore Tree Planting Planner"
+title: "What this app does: A Tree Grows in Baltimore"
 url: https://github.com/allisonylee/hackumbc2026
-source: Baltimore Tree Planting Planner (hackUMBC 2026)
+source: A Tree Grows in Baltimore (hackUMBC 2026)
 ---
 
 This app shows where Baltimore is hottest and least shaded, and plans where new street trees would cool the most people for a given budget. It has three tabs.

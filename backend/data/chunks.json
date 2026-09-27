@@ -68,7 +68,7 @@
   "doc": "app-chat-guide",
   "title": "How the Canopy Guide chat works and what it costs in energy",
   "url": "https://github.com/allisonylee/hackumbc2026",
-  "source": "Baltimore Tree Planting Planner (hackUMBC 2026)",
+  "source": "A Tree Grows in Baltimore (hackUMBC 2026)",
   "text": "Canopy Guide is the chat assistant in this app. It runs a small open language model, Qwen 3.5 with about 2 billion parameters, through Ollama on either a laptop or one small server. No question is sent to a cloud AI service.\n\nIt answers only from a small library of source documents about heat, trees, equity and Baltimore's tree programs, plus facts computed from the app's own data. When you name a neighborhood, it looks up that neighborhood's numbers. When you ask about a site from the Plan tab, it uses that site's facts and the reasons the heat model gives for why the block is hot. Answers cite their sources with numbers like [1], and you can open each source.\n\nEach answer shows its energy use. On a Mac, the energy is measured directly from the chip's power sensors. On the server, it is estimated from the number of words generated. Common questions are answered from a saved copy, which uses almost no extra energy.\n\nA small model can still make mistakes, so check the linked sources for anything important. If the sources don't cover a question, the guide should say it doesn't know."
  },
  {
@@ -76,7 +76,7 @@
   "doc": "app-data-sources",
   "title": "Where the app's data comes from",
   "url": "https://github.com/allisonylee/hackumbc2026",
-  "source": "Baltimore Tree Planting Planner (hackUMBC 2026)",
+  "source": "A Tree Grows in Baltimore (hackUMBC 2026)",
   "text": "The app combines public datasets about Baltimore:\n\n- **Tree canopy and land cover:** the Chesapeake Bay Program's 1-meter land use/land cover maps (2024 edition, covering 2018 and 2021), which classify every square meter as tree canopy, buildings, roads, other pavement, grass or water.\n- **Heat:** NOAA and CAPA Strategies' Heat Watch campaign, in which volunteers drove car-mounted sensors across Baltimore on the afternoon of August 29, 2018.\n- **Planting sites and existing trees:** Baltimore City's street-tree inventory, which records existing trees and vacant sites where a street tree could go.\n- **Neighborhoods:** Baltimore City's neighborhood boundaries.\n- **People:** 2020 Census neighborhood population, plus tract-level income and poverty data; CDC PLACES adult asthma estimates; and the CDC Social Vulnerability Index.\n- **Redlining:** the 1937 Home Owners' Loan Corporation (HOLC) map of Baltimore, from the Mapping Inequality project.\n- **Cooling centers:** cooling center locations from Baltimore's Code Red heat program.\n- **Tree benefits:** the U.S. Forest Service Northeast Community Tree Guide, for energy, carbon, air quality and stormwater benefits by tree size.\n\nNeighborhood facts the chat guide quotes (canopy, heat compared with the city median, income, asthma, number of open planting sites, rankings) are computed from these datasets. Social data is joined by where each block's center falls, so it is approximate for blocks that straddle boundaries."
  },
  {
@@ -84,7 +84,7 @@
   "doc": "app-heat-model",
   "title": "How the app's heat model works",
   "url": "https://github.com/allisonylee/hackumbc2026",
-  "source": "Baltimore Tree Planting Planner (hackUMBC 2026)",
+  "source": "A Tree Grows in Baltimore (hackUMBC 2026)",
   "text": "The app uses a machine-learning model to estimate how hot each block gets on a summer afternoon, and how much cooler it would be with more trees. It learns from real air temperatures that volunteers measured across Baltimore on August 29, 2018, during NOAA's Heat Watch campaign.\n\nThe model is a LightGBM gradient-boosted tree model. For each hexagon it looks only at physical features: tree canopy, pavement, buildings, roads, grass, nearby canopy and pavement, nearby water, and distance from the Inner Harbor. It deliberately leaves out income, race and other social data. Those correlate with heat, but they don't physically cause it, and including them would make the model's \"what if we planted trees here?\" answers unreliable.\n\nThe model is built so that adding canopy can never make a block hotter. It is trained on 2018 land cover, matching the year the temperatures were measured, and then applied to 2021 land cover, the most recent detailed map, to estimate today's heat.\n\nTo estimate cooling, the app adds tree crown to a block a little at a time, 25 square meters per step, and records how much the predicted temperature drops each time. These drops shrink as a block gets leafier, so a paved, treeless block gains the most from its first trees. The model is checked with spatial cross-validation, which tests it on whole areas of the city it didn't train on. SHAP values explain which features make a given block hot, for example lots of pavement or little canopy.\n\nLimits: the temperature data comes from one hot afternoon, the model estimates air temperature and not how hot it feels indoors, and cooling estimates assume trees reach about 20 years of growth."
  },
  {
@@ -92,15 +92,15 @@
   "doc": "app-optimizer",
   "title": "How the Plan tab chooses where to plant trees",
   "url": "https://github.com/allisonylee/hackumbc2026",
-  "source": "Baltimore Tree Planting Planner (hackUMBC 2026)",
+  "source": "A Tree Grows in Baltimore (hackUMBC 2026)",
   "text": "The Plan tab picks specific vacant planting sites from Baltimore's street-tree inventory to get the most benefit for a budget. It does not use AI; it's an optimizer that runs in your browser in a fraction of a second.\n\nEvery candidate site gets a score of value per dollar. A site's value is the cooling its tree would bring, measured in degrees times the number of residents on that block, plus a smaller credit for benefits like carbon storage and stormwater. That value is multiplied by the tree's chance of surviving, because a tree that dies delivers nothing. The optimizer repeatedly buys the best-scoring site that still fits the budget, then re-scores that block, since each extra tree on the same block cools a little less than the one before. It stops when the money runs out.\n\nEach site has a suggested species based on the space available and whether there are overhead power lines. Sites where the sidewalk must be cut cost more than sites with an existing empty tree pit.\n\nResults show the number of trees, how many are expected to survive, money spent, average cooling in the targeted blocks, residents reached, the share of benefit going to low-income and historically redlined blocks, and yearly carbon, stormwater and dollar benefits. The app also compares the plan with planting the same number of trees at random, or in the blocks with the least canopy, so you can see what careful placement adds."
  },
  {
   "id": "app-overview#0",
   "doc": "app-overview",
-  "title": "What this app does: the Baltimore Tree Planting Planner",
+  "title": "What this app does: A Tree Grows in Baltimore",
   "url": "https://github.com/allisonylee/hackumbc2026",
-  "source": "Baltimore Tree Planting Planner (hackUMBC 2026)",
+  "source": "A Tree Grows in Baltimore (hackUMBC 2026)",
   "text": "This app shows where Baltimore is hottest and least shaded, and plans where new street trees would cool the most people for a given budget. It has three tabs.\n\n**Current State** is a map of the city split into small hexagons, each about 66 meters across, roughly one city block. For each hexagon it shows tree canopy, afternoon heat, pavement and buildings, and who lives there, including income, asthma rates and whether the area was redlined in 1937. You can compare neighborhoods and see how heat and canopy line up.\n\n**Plan** lets you set a budget and choose who the trees should benefit most. An optimizer then picks specific vacant planting sites from the city's street-tree inventory and shows the expected cooling, the residents reached, and benefits like carbon and stormwater. Clicking a site explains why it was chosen.\n\n**Learn** tells the story of heat, redlining and trees in Baltimore through a scrolling map, lists ways to help (requesting a street tree, volunteering, donating), and includes this chat guide.\n\nThe heat estimates come from a machine-learning model trained on real temperature measurements. The planner itself is plain math, not AI. The chat guide is the only part that uses a language model, and it runs on a small local model rather than a cloud service."
  },
  {
@@ -108,7 +108,7 @@
   "doc": "app-priorities",
   "title": "What the 'who benefits' sliders and equity guarantee do",
   "url": "https://github.com/allisonylee/hackumbc2026",
-  "source": "Baltimore Tree Planting Planner (hackUMBC 2026)",
+  "source": "A Tree Grows in Baltimore (hackUMBC 2026)",
   "text": "The Plan tab's sliders change which blocks get trees first. They set how much weight goes to heat, equity, health and ecology.\n\n**Heat** ranks sites by how much cooling they bring to how many residents, per dollar. **Equity** gives extra weight to blocks with more poverty, lower incomes and more people of color. **Health** gives extra weight to blocks with higher asthma rates and higher social vulnerability. These two scale the cooling rather than replace it: a block where a tree would cool nobody gets nothing from them, so every plan still puts trees where they actually cool people. **Ecology** adds a per-tree credit for carbon, stormwater and air quality that ignores heat and people, so raising it favors cheap, large, long-lived trees wherever they fit.\n\nOnly the balance between sliders matters, not their absolute level. The sliders make the biggest difference at small and medium budgets. With a large budget, the best blocks fill up and plans with different priorities end up choosing many of the same sites.\n\nThe **equity guarantee** is a hard rule rather than a preference: it reserves at least a chosen share of the trees for lower-income blocks, even if that costs some total cooling. A chart in the Plan tab shows this trade-off between total cooling and the share going to low-income blocks.\n\nYou can also exclude neighborhoods and avoid sites under overhead power lines."
  },
  {

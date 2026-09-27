@@ -1,7 +1,7 @@
 ---
 title: "Where the app's data comes from"
 url: https://github.com/allisonylee/hackumbc2026
-source: Baltimore Tree Planting Planner (hackUMBC 2026)
+source: A Tree Grows in Baltimore (hackUMBC 2026)
 ---
 
 The app combines public datasets about Baltimore:

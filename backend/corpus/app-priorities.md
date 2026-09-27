@@ -1,7 +1,7 @@
 ---
 title: "What the 'who benefits' sliders and equity guarantee do"
 url: https://github.com/allisonylee/hackumbc2026
-source: Baltimore Tree Planting Planner (hackUMBC 2026)
+source: A Tree Grows in Baltimore (hackUMBC 2026)
 ---
 
 The Plan tab's sliders change which blocks get trees first. They set how much weight goes to heat, equity, health and ecology.

@@ -160,7 +160,7 @@ def search_query(history: list[dict]) -> str:
 
 def format_sources(hits: list[Hit], facts: list | None = None, app_url: str = "") -> tuple[list[dict], str]:
     """(items for the `sources` event, SOURCES block for the prompt). App-data facts come first."""
-    entries = [(f.title, app_url, "Baltimore Tree Planting Planner", f.text) for f in facts or []]
+    entries = [(f.title, app_url, "A Tree Grows in Baltimore", f.text) for f in facts or []]
     entries += [(h.chunk["title"], h.chunk["url"], h.chunk["source"], h.chunk["text"]) for h in hits]
     items = [{"n": n, "title": t, "url": u} for n, (t, u, _, _) in enumerate(entries, 1)]
     block = "\n\n".join(f"[{n}] {t} ({src})\n{text}" for n, (t, _, src, text) in enumerate(entries, 1))
