@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { H3HexagonLayer } from '@deck.gl/geo-layers'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
+import polygonClipping, { type Geom } from 'polygon-clipping'
 import type { LayersList, PickingInfo } from '@deck.gl/core'
 import { useStore } from '@/store'
 import { BRAND, HOLC_COLORS, RAMPS, norm, type RGB, type RGBA } from '@/lib/colors'
@@ -59,7 +60,19 @@ export function useLearnLayers(active: boolean): TabLayers {
     const lo = quantile(anoms, 0.02)
     const hi = quantile(anoms, 0.98)
     const hc = hottestCoolest(data.nbs.features.map((f) => f.properties))
+    // The 1937 maps reach into Baltimore County; clip their shading to the city boundary.
+    const [first, ...rest] = data.city.features.map((f) => f.geometry.coordinates as Geom)
+    const city = first ? polygonClipping.union(first, ...rest) : null
+    const holcInCity = {
+      type: 'FeatureCollection' as const,
+      features: data.holc.features.flatMap((f) => {
+        if (!city) return [f]
+        const cut = polygonClipping.intersection(f.geometry.coordinates as Geom, city)
+        return cut.length ? [{ ...f, geometry: { type: 'MultiPolygon' as const, coordinates: cut } }] : []
+      }),
+    }
     return {
+      holcInCity,
       lo, hi,
       hot: new Set(hc?.hot.names ?? []),
       cool: new Set(hc?.cool.names ?? []),
@@ -137,12 +150,14 @@ export function useLearnLayers(active: boolean): TabLayers {
         getFillColor: t(900),
       },
       pickable: false,
+      // Hidden or flat hexes must not occlude the HOLC shading (e.g. while beat 1's columns shrink away).
+      parameters: { depthWriteEnabled: mode.alpha > 0 && mode.height !== 'flat' },
       ...before(beforeId),
     })
 
     const holcLayer = new GeoJsonLayer<HolcFeature['properties']>({
       id: 'learn-holc',
-      data: data.holc,
+      data: base.holcInCity,
       filled: true,
       stroked: true,
       lineWidthUnits: 'pixels',
