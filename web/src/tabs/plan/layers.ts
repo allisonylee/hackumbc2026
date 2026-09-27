@@ -14,6 +14,8 @@ import { SPROUT_MS, hexCoolingF, sproutScale } from './logic'
 import { usePlanUi } from './planUi'
 
 const FAINT_ZOOM = 14.5
+/** Dots sit in the flat hexes' plane; drawing them on top stops the flicker (z-fighting) while the map moves. */
+const ON_TOP = { depthCompare: 'always' } as const
 
 function quantile(sorted: number[], q: number) {
   if (!sorted.length) return 0
@@ -150,6 +152,7 @@ export function usePlanLayers(active: boolean): TabLayers {
         getRadius: 2.5,
         getFillColor: [255, 255, 255, 70],
         pickable: true,
+        parameters: ON_TOP,
         onClick: onSiteClick,
       }),
     ]
@@ -176,6 +179,7 @@ export function usePlanLayers(active: boolean): TabLayers {
         lineWidthUnits: 'pixels',
         getLineWidth: 0.75,
         pickable: true,
+        parameters: ON_TOP,
         autoHighlight: true,
         highlightColor: [255, 255, 255, 200],
         onClick: (info: PickingInfo<Site>) => {
@@ -195,6 +199,7 @@ export function usePlanLayers(active: boolean): TabLayers {
         lineWidthUnits: 'pixels',
         getLineWidth: 1.25,
         pickable: false,
+        parameters: ON_TOP,
       }),
       new ScatterplotLayer<Site>({
         id: 'plan-selected',
@@ -208,6 +213,7 @@ export function usePlanLayers(active: boolean): TabLayers {
         lineWidthUnits: 'pixels',
         getLineWidth: 2,
         pickable: false,
+        parameters: ON_TOP,
       }),
     ]
   }, [active, data, planned, birthArr, t, zoom, selectedSite, robust, robustSet])

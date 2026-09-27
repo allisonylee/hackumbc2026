@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -50,15 +50,24 @@ function TabPanels() {
   )
 }
 
-/** The homepage at `/`; everything else is the app. Data keeps loading in the background either way. */
+/**
+ * The homepage at `/` sits over the app. The map loads underneath it (data preloads too), so "Continue"
+ * just fades the homepage away. The tab UI and layers mount only after the fade finishes: building them
+ * (14k hexes) during the fade would stall it, and this way the columns' rise plays in view.
+ */
 function Shell({ progress, error }: { progress: number; error: string | null }) {
   const data = useStore((s) => s.data)
+  const setHome = useStore((s) => s.setHome)
   const { pathname } = useLocation()
-  if (pathname === '/') return <HomePage />
+  const isHome = pathname === '/'
+  const [homeGone, setHomeGone] = useState(!isHome)
+  if (isHome && homeGone) setHomeGone(false)
+  const showApp = !isHome && homeGone
+  useLayoutEffect(() => setHome(!showApp), [showApp, setHome])
   return (
     <>
       {data && <MapCanvas />}
-      {data && (
+      {data && showApp && (
         <>
           <NavBar />
           <TabPanels />
@@ -68,9 +77,16 @@ function Shell({ progress, error }: { progress: number; error: string | null }) 
         </>
       )}
       <AnimatePresence>
-        {!data && (
+        {!data && showApp && (
           <motion.div key="loading" exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
             <LoadingScreen progress={progress} error={error} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence onExitComplete={() => setHomeGone(true)}>
+        {isHome && (
+          <motion.div key="home" className="fixed inset-0 z-40" exit={{ opacity: 0 }} transition={{ duration: 0.7, ease: 'easeInOut' }}>
+            <HomePage />
           </motion.div>
         )}
       </AnimatePresence>

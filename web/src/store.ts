@@ -26,6 +26,9 @@ type State = {
 
   tab: Tab
   setTab: (t: Tab) => void
+  /** The homepage covers the app; map layers wait for it to go so their intro animations are seen. */
+  home: boolean
+  setHome: (home: boolean) => void
 
   /** Map-wide display state */
   map: {
@@ -96,6 +99,8 @@ export const useStore = create<State>()((set) => ({
 
   tab: 'current',
   setTab: (tab) => set({ tab }),
+  home: typeof window !== 'undefined' && window.location.pathname === '/',
+  setHome: (home) => set({ home }),
 
   map: { mode3d: true, buildings: false, satellite: false, zoom: 11.3 },
   setMap: (m) => set((s) => ({ map: { ...s.map, ...m } })),
