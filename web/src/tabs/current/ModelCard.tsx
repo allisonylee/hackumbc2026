@@ -6,23 +6,13 @@ import { StatTile } from '@/components/StatTile'
 import { featureLabel, fmtF } from '@/lib/format'
 import type { Stats } from '@/lib/types'
 
-const C_TO_F = 1.8
-
-/** Partial dependence of heat on canopy, with the literature range of slopes shaded around it. */
+/** Partial dependence of heat on canopy, with today's city canopy marked. */
 function PdChart({ stats }: { stats: Stats }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = ref.current
     const curve = stats.model.pdCurve
     if (!el || curve.length < 2) return
-    // Anchor the literature lines at the curve point closest to today's city canopy.
-    const anchor = curve.reduce((b, p) => (Math.abs(p[0] - stats.city.canopy) < Math.abs(b[0] - stats.city.canopy) ? p : b))
-    const s1 = stats.literature.meta_C_per10 * C_TO_F, s2 = stats.literature.zaerpour_C_per10 * C_TO_F
-    const band = curve.map(([c]) => ({
-      c,
-      y1: anchor[1] - (Math.min(s1, s2) * (c - anchor[0])) / 0.1,
-      y2: anchor[1] - (Math.max(s1, s2) * (c - anchor[0])) / 0.1,
-    }))
     const plot = Plot.plot({
       width: 460,
       height: 200,
@@ -32,7 +22,6 @@ function PdChart({ stats }: { stats: Stats }) {
       x: { label: 'Hex tree canopy →', tickFormat: (d: number) => `${Math.round(d * 100)}%` },
       y: { label: '↑ Predicted °F', grid: true },
       marks: [
-        Plot.areaY(band, { x: 'c', y1: 'y1', y2: 'y2', fill: '#a78bfa', fillOpacity: 0.18 }),
         Plot.lineY(curve, { x: (d: [number, number]) => d[0], y: (d: [number, number]) => d[1], stroke: '#4ade80', strokeWidth: 2.2 }),
         Plot.ruleX([stats.city.canopy], { stroke: 'rgba(255,255,255,0.35)', strokeDasharray: '3,3' }),
       ],
@@ -76,9 +65,8 @@ export function ModelCardContent({ stats }: { stats: Stats }) {
       <section>
         <h3 className="mb-1 font-display text-[13px] font-semibold text-white">Heat vs. canopy, all else equal</h3>
         <p className="mb-1 text-xs text-white/55">
-          Green: the model’s partial dependence ({fmtF(m.pdFPer10pct)} per +10 points of canopy). Violet: the range of
-          published estimates ({stats.literature.meta_C_per10}–{stats.literature.zaerpour_C_per10} °C per 10%). Dashed:
-          today’s city canopy.
+          Green: the model’s partial dependence ({fmtF(m.pdFPer10pct)} per +10 points of canopy). Dashed: today’s city
+          canopy.
         </p>
         <PdChart stats={stats} />
       </section>
