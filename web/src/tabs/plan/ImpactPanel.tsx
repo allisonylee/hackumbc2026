@@ -22,11 +22,10 @@ export function ImpactTiles() {
       <StatTile fast label="Trees" value={i.trees} accent="#4ade80" hint={`on ${fmtInt(blocks)} blocks`} />
       <StatTile fast label="Spent" value={i.spent} format={(n) => fmtUsd(n)} hint={`of ${fmtUsd(budget)}`} />
       <StatTile fast label="Expected to survive" value={i.expectedSurviving} format={fmtInt} hint={`of ${fmtInt(i.trees)} planted`} />
-      <StatTile fast label="Residents reached" value={i.residents} format={fmtCompact} hint="live in targeted blocks" />
       <StatTile fast label="CO₂ stored" value={i.co2LbYr} format={(n) => `${fmtCompact(n)} lb`} hint={`per year ${horizon}`} />
       <StatTile fast label="Stormwater" value={i.stormGalYr} format={(n) => `${fmtCompact(n)} gal`} hint={`per year ${horizon}`} />
       <StatTile fast label="Benefits" value={i.benefitUsdYr} format={(n) => fmtUsd(n)} hint={`per year ${horizon}`} />
-      <StatTile fast label="Cooling delivered" value={i.coolingPersonF} format={fmtCompact} hint="people × °F" />
+      <StatTile fast label="Cooling delivered" value={i.coolingPersonF} format={fmtCompact} hint="people × °F" className="col-span-2" />
     </div>
   )
 }
