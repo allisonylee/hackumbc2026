@@ -17,7 +17,8 @@ export const useCurrentUi = create<CurrentUi>()((set) => ({
   deltas: null,
   deltasKey: 0,
   setDeltas: (deltas) => set((s) => ({ deltas, deltasKey: s.deltasKey + 1 })),
-  statsOpen: typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1024px)').matches,
+  // Closed by default so the map gets the full width; the "City stats" button opens it.
+  statsOpen: false,
   setStatsOpen: (statsOpen) => set({ statsOpen }),
 }))
 
