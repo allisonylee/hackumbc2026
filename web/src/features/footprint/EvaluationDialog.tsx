@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ClipboardCheck, FlaskConical, Gauge, ShieldAlert, Sprout, Target } from 'lucide-react'
 import { useStore } from '@/store'
 import type { Stats } from '@/lib/types'
+import { shownLimitations } from '@/lib/data'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -226,7 +227,7 @@ function ModelValidation({ stats }: { stats: Stats }) {
       <Section title="Known limits">
         <Bullets
           items={[
-            ...m.limitations,
+            ...shownLimitations(m.limitations),
             'Not yet shown: sensitivity of the plan to crown size, and a 2013→2021 backtest of canopy change vs. temperature change.',
           ]}
         />

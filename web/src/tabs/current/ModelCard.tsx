@@ -3,6 +3,7 @@ import * as Plot from '@observablehq/plot'
 import { useStore } from '@/store'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { StatTile } from '@/components/StatTile'
+import { shownLimitations } from '@/lib/data'
 import { featureLabel, fmtF } from '@/lib/format'
 import type { Stats } from '@/lib/types'
 
@@ -78,7 +79,7 @@ export function ModelCardContent({ stats }: { stats: Stats }) {
       <section>
         <h3 className="mb-1 font-display text-[13px] font-semibold text-white">Limitations</h3>
         <ul className="list-disc space-y-0.5 pl-5 text-xs text-white/65">
-          {m.limitations.map((l) => <li key={l}>{l}</li>)}
+          {shownLimitations(m.limitations).map((l) => <li key={l}>{l}</li>)}
         </ul>
       </section>
     </div>
