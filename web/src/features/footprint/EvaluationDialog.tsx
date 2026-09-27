@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ClipboardCheck, FlaskConical, Gauge, ShieldAlert, Sprout, Target } from 'lucide-react'
+import { ClipboardCheck, Gauge, Sprout, Target } from 'lucide-react'
 import { useStore } from '@/store'
 import type { Stats } from '@/lib/types'
 import { shownLimitations } from '@/lib/data'
@@ -43,7 +43,7 @@ export default function EvaluationDialog() {
             <ClipboardCheck className="size-5 text-emerald-400" aria-hidden /> Impact &amp; evaluation
           </DialogTitle>
           <DialogDescription className="text-white/55">
-            How we'd know this works: what to measure, how well the heat model holds up, and a realistic pilot.
+            How we'd know this works: what to measure and how well the heat model holds up.
           </DialogDescription>
         </DialogHeader>
         {open && <Body />}
@@ -62,7 +62,6 @@ function Body() {
         <TabsList className="bg-white/[0.06]">
           <TabsTrigger value="metrics">Impact metrics</TabsTrigger>
           <TabsTrigger value="model">Model validation</TabsTrigger>
-          <TabsTrigger value="pilot">Pilot &amp; risks</TabsTrigger>
         </TabsList>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -103,28 +102,6 @@ function Body() {
 
         <TabsContent value="model" className="space-y-6">
           <ModelValidation stats={stats} />
-        </TabsContent>
-
-        <TabsContent value="pilot" className="space-y-6">
-          <Section title="Pilot plan" icon={<FlaskConical className="size-4 text-emerald-400" aria-hidden />}>
-            <Bullets
-              items={[
-                'Share the plan with TreeBaltimore and Baltimore Tree Trust, and pilot one planting season: about 100 tree wells in 2–3 neighborhoods chosen with a partner organization.',
-                'Compare against business-as-usual siting on tree survival, street-level heat (sensors on pilot and comparison blocks) and resident engagement.',
-                'Close the loop with residents: they can flag pits or request trees, and neighborhood associations get a printable plan for their area.',
-              ]}
-            />
-          </Section>
-          <Section title="Risks we take seriously" icon={<ShieldAlert className="size-4 text-amber-300" aria-hidden />}>
-            <Bullets
-              items={[
-                <><b className="font-medium text-white">Green gentrification.</b> New trees can raise rents; pair planting with anti-displacement partners.</>,
-                <><b className="font-medium text-white">Resident consent.</b> Some residents refuse street trees over upkeep or sidewalk damage, and Baltimore has a history of refusals. Plant with people, not at them.</>,
-                <><b className="font-medium text-white">Maintenance.</b> Young trees need about two years of watering; a planted tree that dies helps no one.</>,
-                <><b className="font-medium text-white">Data limits.</b> The heat model learns from a single afternoon of air temperature (not surface temperature), so it shows the pattern on one hot day, not every day.</>,
-              ]}
-            />
-          </Section>
         </TabsContent>
       </div>
     </Tabs>
