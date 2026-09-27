@@ -1,5 +1,5 @@
 // Pure helpers for the Plan tab UI (no React, no store). Tested in logic.test.ts.
-import type { Hex, Impact, ParetoPoint, Site, Species, Weights } from '@/lib/types'
+import type { Hex, Impact, ParetoPoint, Site, Weights } from '@/lib/types'
 
 // ---------- Budget slider (log scale) ----------
 export const BUDGET_MIN = 25_000
@@ -151,46 +151,12 @@ export function sitesToGeoJson(sites: Site[]) {
   }
 }
 
-// ---------- Planned cooling / canopy per hex ----------
+// ---------- Planned cooling per hex (hover tooltip) ----------
 /** °F of cooling in a hex from its first n trees (sum of marginal gains). */
 export function hexCoolingF(h: Hex, n: number) {
   let f = 0
   for (let k = 0; k < Math.min(n, h.gains.length); k++) f += h.gains[k]
   return f
-}
-
-/**
- * Approximate crown area (m²) of one street tree at 20 years, by size class. Assumption for the
- * before/after canopy view only (not used by the optimizer): small ≈ 5 m, medium ≈ 8 m, large ≈ 11 m spread.
- */
-export const CROWN_M2_20Y: Record<Species['size'], number> = { small: 20, medium: 50, large: 95 }
-
-/**
- * Canopy fraction added per hex by planted sites at a maturity (Σ crown × maturity ÷ hex area), and the
- * color-scale top: the 90th percentile of the gains, so a few very dense blocks don't wash out the rest.
- */
-export function canopyGains(
-  sites: Site[],
-  sizeOf: (s: Site) => Species['size'],
-  maturity: number,
-  areaOf: (h3: string) => number,
-) {
-  const crowns = new Map<string, number>()
-  for (const s of sites) crowns.set(s.h3, (crowns.get(s.h3) ?? 0) + CROWN_M2_20Y[sizeOf(s)])
-  const gains = new Map<string, number>()
-  for (const [h3, c] of crowns) {
-    const a = areaOf(h3)
-    if (a > 0) gains.set(h3, (c * maturity) / a)
-  }
-  const sorted = [...gains.values()].sort((a, b) => a - b)
-  const hi = sorted.length ? sorted[Math.floor(0.9 * (sorted.length - 1))] : 0
-  return { gains, hi: Math.max(hi, 1e-4) }
-}
-
-/** Canopy fraction after planting: canopy + Σ crown × maturity ÷ hex area, capped at 1. */
-export function plannedCanopy(canopy: number, crownsM2: number, maturity: number, hexAreaM2: number) {
-  if (hexAreaM2 <= 0) return canopy
-  return Math.min(1, canopy + (crownsM2 * maturity) / hexAreaM2)
 }
 
 // ---------- Robust picks (§8.5) ----------

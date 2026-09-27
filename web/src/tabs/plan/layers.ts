@@ -1,22 +1,19 @@
-// Plan tab map layers (§8.3): flat hexes (heat → planned cooling / canopy), sprouting planned sites,
+// Plan tab map layers (§8.3): flat heat hexes, sprouting planned sites,
 // faint unselected sites at high zoom, robust-pick rings, selection ring, excluded/focused neighborhoods.
 import { useEffect, useMemo, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
 import { H3HexagonLayer } from '@deck.gl/geo-layers'
 import type { PickingInfo } from '@deck.gl/core'
-import { cellArea } from 'h3-js'
 import { useStore } from '@/store'
 import { BRAND, RAMPS, type RGBA } from '@/lib/colors'
 import { fmtF, fmtInt, fmtUsd } from '@/lib/format'
 import type { Hex, NbFeature, Site } from '@/lib/types'
 import { before, EMPTY_TAB_LAYERS, type TabLayers, type Tooltip } from '@/map/types'
-import { MATURITY } from './optimizer'
-import { SPROUT_MS, canopyGains, hexCoolingF, sproutScale } from './logic'
+import { SPROUT_MS, hexCoolingF, sproutScale } from './logic'
 import { usePlanUi } from './planUi'
 
 const FAINT_ZOOM = 14.5
-const CANOPY_MAX = 0.6
 
 function quantile(sorted: number[], q: number) {
   if (!sorted.length) return 0
@@ -41,18 +38,6 @@ function useClock(enabled: boolean, until: number) {
 
 const tooltipStyle = { background: 'rgba(11,15,14,0.9)', color: 'white', fontSize: '12px', borderRadius: '8px', padding: '6px 8px', border: '1px solid rgba(255,255,255,0.1)' }
 
-/** Canopy added per hex by the current plan at the chosen maturity horizon (shared by the map and its legend). */
-export function usePlanCanopyGains() {
-  const data = useStore((s) => s.data)
-  const result = useStore((s) => s.plan.result)
-  const years = useStore((s) => s.plan.params.years)
-  return useMemo(() => {
-    if (!data || !result) return null
-    const sites = result.siteIds.map((id) => data.siteById.get(id)).filter((x): x is Site => !!x)
-    return canopyGains(sites, (x) => data.speciesByName.get(x.species)?.size ?? 'medium', MATURITY[years], (h3) => cellArea(h3, 'm2'))
-  }, [data, result, years])
-}
-
 export function usePlanLayers(active: boolean): TabLayers {
   const data = useStore((s) => s.data)
   const result = useStore((s) => s.plan.result)
@@ -61,13 +46,11 @@ export function usePlanLayers(active: boolean): TabLayers {
   const selectedSite = useStore((s) => s.selectedSite)
   const zoom = useStore((s) => s.map.zoom)
   const beforeId = useStore((s) => s.map.labelLayerId)
-  const view = usePlanUi((s) => s.view)
   const births = usePlanUi((s) => s.births)
   const lastBirth = usePlanUi((s) => s.lastBirth)
   const robust = usePlanUi((s) => s.robust)
   const robustSet = usePlanUi((s) => s.robustIds)
   const reduce = useReducedMotion() ?? false
-  const gained = usePlanCanopyGains()
 
   const animating = active && !reduce && !!result
   const now = useClock(animating, lastBirth + SPROUT_MS + 32)
@@ -97,39 +80,14 @@ export function usePlanLayers(active: boolean): TabLayers {
     return a
   }, [planned, births])
 
-  // Per-hex colors for the current view.
+  // Heat backdrop; planned trees are drawn on top as sprouting dots.
   const hexColors = useMemo(() => {
     if (!data) return null
     const [lo, hi] = heatRange
-    const perHex = result?.perHex ?? {}
     const colors = new Map<string, RGBA>()
-    let maxCool = 0
-    if (view === 'cooling' && result) for (const h3 in perHex) maxCool = Math.max(maxCool, hexCoolingF(data.hexById.get(h3)!, perHex[h3]))
-    for (const h of data.hexes) {
-      let c: RGBA
-      if (view === 'canopyNow') {
-        c = [...RAMPS.canopy(h.canopy / CANOPY_MAX), 170] as RGBA
-      } else if (view === 'canopyAfter') {
-        // Only planted blocks are colored, by canopy gained; the rest fade to a faint canopy backdrop.
-        const g = gained?.gains.get(h.h3)
-        c = g ? ([...RAMPS.gain(Math.min(1, g / gained!.hi)), 235] as RGBA) : ([...RAMPS.canopy(h.canopy / CANOPY_MAX), 35] as RGBA)
-      } else if (result && perHex[h.h3]) {
-        const f = hexCoolingF(h, perHex[h.h3])
-        c = [...RAMPS.cooling(0.4 + 0.6 * Math.sqrt(maxCool > 0 ? f / maxCool : 0)), 235] as RGBA
-      } else {
-        const heat = RAMPS.heat((h.heatAnom - lo) / (hi - lo || 1))
-        c = [...heat, result ? 35 : 102] as RGBA // 40% opacity, much dimmer once a plan is drawn on top
-      }
-      colors.set(h.h3, c)
-    }
+    for (const h of data.hexes) colors.set(h.h3, [...RAMPS.heat((h.heatAnom - lo) / (hi - lo || 1)), 102] as RGBA)
     return colors
-  }, [data, heatRange, result, view, gained])
-
-  // Planted blocks get a pixel-width outline so they stay visible at city zoom, where one hex is a few pixels.
-  const plantedHexes = useMemo(
-    () => (data && result && view !== 'canopyNow' ? Object.keys(result.perHex).map((h3) => data.hexById.get(h3)).filter((h): h is Hex => !!h) : []),
-    [data, result, view],
-  )
+  }, [data, heatRange])
 
   const excludedFeatures = useMemo(() => {
     if (!data || !excludeNbs.length) return []
@@ -158,25 +116,6 @@ export function usePlanLayers(active: boolean): TabLayers {
         pickable: true,
         autoHighlight: true,
         highlightColor: [255, 255, 255, 40],
-        ...before(beforeId),
-      }),
-      new H3HexagonLayer<Hex>({
-        id: 'hex-plan-planted',
-        data: plantedHexes,
-        getHexagon: (d) => d.h3,
-        extruded: false,
-        filled: true,
-        stroked: true,
-        coverage: 1,
-        getFillColor: (d) => hexColors.get(d.h3) ?? [0, 0, 0, 0],
-        getLineColor: (d) => {
-          const c = hexColors.get(d.h3)
-          return c ? [c[0], c[1], c[2], 255] : [0, 0, 0, 0]
-        },
-        lineWidthUnits: 'pixels',
-        getLineWidth: 2,
-        updateTriggers: { getFillColor: hexColors, getLineColor: hexColors },
-        pickable: false,
         ...before(beforeId),
       }),
       new GeoJsonLayer({
@@ -214,7 +153,7 @@ export function usePlanLayers(active: boolean): TabLayers {
         onClick: onSiteClick,
       }),
     ]
-  }, [active, data, hexColors, plantedHexes, excludedFeatures, focusFeature, zoom, beforeId, reduce])
+  }, [active, data, hexColors, excludedFeatures, focusFeature, zoom, beforeId, reduce])
 
   const siteLayers = useMemo(() => {
     if (!active || !data || !planned) return []

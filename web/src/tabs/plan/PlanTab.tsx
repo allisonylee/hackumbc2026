@@ -9,36 +9,14 @@ import { ImpactPanel } from './ImpactPanel'
 import { ExportMenu } from './ExportMenu'
 import { SiteCard } from './SiteCard'
 import { usePlanRunner } from './usePlanRunner'
-import { usePlanUi } from './planUi'
-import { usePlanCanopyGains } from './layers'
 
 const wide = (px: number) => typeof window === 'undefined' || window.innerWidth >= px
 
 function MapLegend() {
-  const view = usePlanUi((s) => s.view)
   const hasPlan = useStore((s) => !!s.plan.result?.siteIds.length)
-  const years = useStore((s) => s.plan.params.years)
-  const gained = usePlanCanopyGains()
-  if (view === 'canopyNow') return <ContinuousLegend title="Tree canopy now" ramp={RAMPS.canopy} lo="0%" hi="60%+" />
-  if (view === 'canopyAfter') {
-    if (!gained?.gains.size) return <div className="text-[11px] text-white/60">No planned trees yet.</div>
-    const pts = (f: number) => `+${(f * 100).toFixed(f * 100 < 10 ? 1 : 0)}`
-    return (
-      <div className="space-y-1">
-        <ContinuousLegend
-          title={`Canopy gained ${years ? `in ${years} years` : 'at planting'} (points)`}
-          ramp={RAMPS.gain}
-          lo={pts(0)}
-          hi={`${pts(gained.hi)}+`}
-        />
-        <div className="text-[10px] text-white/45">Only planted blocks shown; others are dimmed.</div>
-      </div>
-    )
-  }
   return (
     <div className="flex flex-wrap items-end gap-4">
-      {hasPlan && <ContinuousLegend title="Planned cooling per block" ramp={RAMPS.cooling} lo="less" hi="more" />}
-      <ContinuousLegend title={hasPlan ? 'Heat (unplanted blocks)' : 'Afternoon heat'} ramp={RAMPS.heat} lo="cooler" hi="hotter" className="opacity-80" />
+      <ContinuousLegend title="Afternoon heat" ramp={RAMPS.heat} lo="cooler" hi="hotter" />
       {hasPlan && (
         <div className="flex items-center gap-1.5 text-[11px] text-white/60">
           <span className="size-2.5 rounded-full bg-canopy" aria-hidden /> planned tree

@@ -18,7 +18,7 @@ import {
 } from './logic'
 import { NbExclude } from './NbExclude'
 import { FocusChip } from './FocusChip'
-import { usePlanUi, type PlanView } from './planUi'
+import { usePlanUi } from './planUi'
 
 const WEIGHT_META: Record<keyof Weights, { label: string; hint: string; range: string }> = {
   heat: { label: 'Heat', hint: 'Cooling × residents reached per dollar', range: '[&_[data-slot=slider-range]]:bg-heat' },
@@ -280,29 +280,13 @@ function RulesControl() {
 }
 
 function ViewControl() {
-  const view = usePlanUi((s) => s.view)
-  const setView = usePlanUi((s) => s.setView)
   const robust = usePlanUi((s) => s.robust)
   const setRobust = usePlanUi((s) => s.setRobust)
   const robustComputing = usePlanUi((s) => s.robustComputing)
   const robustIds = usePlanUi((s) => s.robustIds)
   const trees = useStore((s) => s.plan.result?.impact.trees ?? 0)
   return (
-    <Section title="Map view">
-      <ToggleGroup
-        type="single"
-        size="sm"
-        variant="outline"
-        spacing={0}
-        value={view}
-        onValueChange={(v) => v && setView(v as PlanView)}
-        className="grid w-full grid-cols-3"
-        aria-label="Map coloring"
-      >
-        <ToggleGroupItem value="cooling" className="h-7 text-[11px]">Cooling</ToggleGroupItem>
-        <ToggleGroupItem value="canopyNow" className="h-7 text-[11px]">Canopy now</ToggleGroupItem>
-        <ToggleGroupItem value="canopyAfter" className="h-7 text-[11px]">Canopy gained</ToggleGroupItem>
-      </ToggleGroup>
+    <Section title="Map">
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor="robust" className="text-xs font-normal text-white/80">
           Robust picks

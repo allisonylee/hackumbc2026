@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Impact, Site } from '@/lib/types'
 import {
   BUDGET_MAX, BUDGET_MIN, MAX_DELAY_MS, SLIDER_STEPS, STAGGER_LIMIT, bboxOf, bestPerColumn, budgetToSlider, computeBirths,
-  canopyGains, matchPreset, paretoNote, paretoNoteText, perturbedWeights, plannedCanopy, robustIds, sitesToCsv, sitesToGeoJson,
+  matchPreset, paretoNote, paretoNoteText, perturbedWeights, robustIds, sitesToCsv, sitesToGeoJson,
   sliderToBudget, sproutScale, PRESETS,
 } from './logic'
 
@@ -118,24 +118,6 @@ describe('export', () => {
     expect(g.features).toHaveLength(2)
     expect(g.features[0].geometry.coordinates).toEqual([-76.6, 39.3])
     expect(g.features[1].properties.rank).toBe(2)
-  })
-})
-
-describe('planned canopy', () => {
-  it('adds crown area scaled by maturity and caps at 1', () => {
-    expect(plannedCanopy(0.1, 1000, 1, 10_000)).toBeCloseTo(0.2)
-    expect(plannedCanopy(0.1, 1000, 0.5, 10_000)).toBeCloseTo(0.15)
-    expect(plannedCanopy(0.9, 1e6, 1, 10_000)).toBe(1)
-  })
-
-  it('canopyGains adds crown area per hex and sets the scale top at the 90th percentile', () => {
-    const site = (h3: string, size: 'small' | 'medium' | 'large') => ({ h3, size }) as unknown as Site
-    const sites = [site('a', 'medium'), site('a', 'medium'), site('b', 'small'), ...Array.from({ length: 9 }, (_, i) => site(`c${i}`, 'large'))]
-    const { gains, hi } = canopyGains(sites, (s) => (s as unknown as { size: 'small' | 'medium' | 'large' }).size, 0.5, () => 10_000)
-    expect(gains.get('a')).toBeCloseTo((2 * 50 * 0.5) / 10_000)
-    expect(gains.get('b')).toBeCloseTo((20 * 0.5) / 10_000)
-    expect(gains.size).toBe(11)
-    expect(hi).toBeCloseTo((95 * 0.5) / 10_000)
   })
 })
 
