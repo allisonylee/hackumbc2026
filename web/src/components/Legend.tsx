@@ -20,22 +20,22 @@ export function ContinuousLegend({ title, ramp, lo, hi, mid, className }: Contin
 
 type BivariateProps = { xLabel: string; yLabel: string; className?: string }
 
-/** 3×3 bivariate key rotated 45°. Rows: canopy tercile (inverted, low canopy at top); columns: x variable. */
+/** 3×3 bivariate key. Rows: canopy tercile (inverted, low canopy at top); columns: x variable, increasing to the right. */
 export function BivariateLegend({ xLabel, yLabel, className }: BivariateProps) {
   return (
-    <div className={cn('flex items-center gap-3', className)}>
-      <div className="relative size-24">
-        <div className="absolute inset-3 grid rotate-45 grid-cols-3 grid-rows-3 gap-px">
+    <div className={cn('flex items-stretch gap-1.5 text-[11px] text-white/70', className)}>
+      <div className="flex w-4 items-center justify-center">
+        <span className="-rotate-90 whitespace-nowrap">{yLabel} →</span>
+      </div>
+      <div>
+        <div className="grid size-20 grid-cols-3 grid-rows-3 gap-px">
           {[2, 1, 0].flatMap((row) =>
             [0, 1, 2].map((col) => (
               <div key={`${row}${col}`} style={{ background: toCss(BIVARIATE[row * 3 + col]) }} />
             )),
           )}
         </div>
-      </div>
-      <div className="space-y-1 text-[11px] text-white/70">
-        <div>↗ more {xLabel}</div>
-        <div>↖ less {yLabel}</div>
+        <div className="mt-1 text-center">{xLabel} →</div>
       </div>
     </div>
   )

@@ -18,7 +18,7 @@ export function MapLegend() {
         <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-white/60">
           Canopy × {bivariate === 'heat' ? 'heat' : 'income'} (terciles)
         </div>
-        <BivariateLegend xLabel={bivariate === 'heat' ? 'heat' : 'low income'} yLabel="canopy" />
+        <BivariateLegend xLabel={bivariate === 'heat' ? 'More heat' : 'Lower income'} yLabel="Less canopy" />
       </div>
     )
   } else {
