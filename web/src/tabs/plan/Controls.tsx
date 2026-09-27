@@ -10,7 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { fmtCompact, fmtInt, fmtUsd } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Params, Weights } from '@/lib/types'
+import type { Params, Site, Weights } from '@/lib/types'
 import { avgSiteCost } from './optimizerClient'
 import {
   BUDGET_MAX, BUDGET_MIN, PRESETS, SLIDER_STEPS, WEIGHT_KEYS, budgetToSlider, lerpWeights, matchPreset, niceBudget, sliderToBudget,
@@ -63,6 +63,12 @@ function BudgetControl() {
   const setParams = useStore((s) => s.setParams)
   // avgSiteCost reads the loaded data; recompute when it changes.
   const avg = useMemo(() => (data ? avgSiteCost() : 1), [data])
+  // Typical cost per site type (existing pit vs. new sidewalk cut), for the citation line.
+  const typeCost = useMemo(() => {
+    const out: Partial<Record<Site['type'], number>> = {}
+    for (const s of data?.siteById.values() ?? []) out[s.type] ??= s.cost
+    return out
+  }, [data])
   const trees = budget / avg
   const pace = TREE_PACE * avg
 
@@ -116,7 +122,15 @@ function BudgetControl() {
           City's yearly pace (~{fmtCompact(TREE_PACE)} trees)
         </Chip>
       </div>
-      <p className="text-[10px] text-white/40">Average site cost {fmtUsd(avg, false)} (pits and new cuts).</p>
+      <p className="text-[10px] leading-snug text-white/40">
+        Average site cost {fmtUsd(avg, false)}
+        {typeCost.pit != null && typeCost.potential != null && (
+          <>
+            : about {fmtUsd(typeCost.pit, false)} at an existing pit, {fmtUsd(typeCost.potential, false)} if concrete must be cut
+          </>
+        )}
+        {' '}(planting + 2 years’ care; Baltimore Tree Trust, via WYPR, 2026).
+      </p>
     </Section>
   )
 }
