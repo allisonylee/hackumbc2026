@@ -1,5 +1,5 @@
 ---
-title: "How do I get a free street tree planted on my street in Baltimore?"
+title: "How do I request a street tree for my street in Baltimore?"
 url: https://www.treebaltimore.org/street-tree-request-form
 source: TreeBaltimore (Baltimore City Recreation & Parks, Forestry Division)
 ---
