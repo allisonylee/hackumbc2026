@@ -118,8 +118,14 @@ const VAR_LABELS: Record<string, string> = {
 }
 const varLabel = (v: string) => VAR_LABELS[v] ?? v
 
+/** Variables left out of the correlation grid. */
+const CORR_HIDDEN = new Set(['poverty'])
+
 function CorrHeatmap({ stats }: { stats: Stats }) {
-  const { vars, matrix } = stats.corr
+  const { vars, matrix } = useMemo(() => {
+    const keep = stats.corr.vars.flatMap((v, i) => (CORR_HIDDEN.has(v) ? [] : [i]))
+    return { vars: keep.map((i) => stats.corr.vars[i]), matrix: keep.map((i) => keep.map((j) => stats.corr.matrix[i][j])) }
+  }, [stats.corr])
   const [hover, setHover] = useState<[number, number] | null>(null)
   const takeaway = useMemo(() => {
     const hi = vars.indexOf('heat')
