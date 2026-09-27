@@ -151,7 +151,7 @@ function WeightsControl() {
 
   return (
     <Section
-      title="Who benefits"
+      title="Optimize based on:"
       action={
         <Popover>
           <PopoverTrigger asChild>
@@ -180,7 +180,7 @@ function WeightsControl() {
         aria-label="Presets"
       >
         {PRESETS.map((p) => (
-          <ToggleGroupItem key={p.id} value={p.id} className="h-auto min-h-7 px-1 py-1 text-[11px] leading-tight whitespace-normal data-[state=on]:bg-canopy/15 data-[state=on]:text-canopy">
+          <ToggleGroupItem key={p.id} value={p.id} className="h-9 px-1 py-1 text-[11px] leading-tight whitespace-normal data-[state=on]:bg-canopy/15 data-[state=on]:text-canopy">
             {p.label}
           </ToggleGroupItem>
         ))}

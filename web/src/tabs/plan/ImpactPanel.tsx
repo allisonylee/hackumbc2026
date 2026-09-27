@@ -20,17 +20,17 @@ export function ImpactTiles() {
   const horizon = years === 0 ? 'in the planting year' : `at ${years} years`
   return (
     <div className="grid grid-cols-2 gap-2">
-      <StatTile label="Trees" value={i.trees} accent="#4ade80" hint={`on ${fmtInt(blocks)} blocks`} />
-      <StatTile label="Spent" value={i.spent} format={(n) => fmtUsd(n)} hint={`of ${fmtUsd(budget)}`} />
-      <StatTile label="Avg cooling" value={i.avgFTargeted} format={(n) => `−${n.toFixed(2)}°F`} accent="#2dd4bf" hint="in targeted blocks" />
-      <StatTile label="Expected to survive" value={i.expectedSurviving} format={fmtInt} hint={`of ${fmtInt(i.trees)} planted`} />
-      <StatTile label="Residents reached" value={i.residents} format={fmtCompact} hint="live in targeted blocks" />
-      <StatTile label="To low-income" value={i.shareLowIncome} format={(n) => fmtPct(n)} accent="#a78bfa" hint="share of cooling" />
-      <StatTile label="In HOLC C/D" value={i.shareHolcCD} format={(n) => fmtPct(n)} hint="share of trees, redlined areas" />
-      <StatTile label="CO₂ stored" value={i.co2LbYr} format={(n) => `${fmtCompact(n)} lb`} hint={`per year ${horizon}`} />
-      <StatTile label="Stormwater" value={i.stormGalYr} format={(n) => `${fmtCompact(n)} gal`} hint={`per year ${horizon}`} />
-      <StatTile label="Benefits" value={i.benefitUsdYr} format={(n) => fmtUsd(n)} hint={`per year ${horizon}`} />
-      <StatTile label="Cooling delivered" value={i.coolingPersonF} format={fmtCompact} hint="person-°F" />
+      <StatTile fast label="Trees" value={i.trees} accent="#4ade80" hint={`on ${fmtInt(blocks)} blocks`} />
+      <StatTile fast label="Spent" value={i.spent} format={(n) => fmtUsd(n)} hint={`of ${fmtUsd(budget)}`} />
+      <StatTile fast label="Avg cooling" value={i.avgFTargeted} format={(n) => `−${n.toFixed(2)}°F`} accent="#2dd4bf" hint="in targeted blocks" />
+      <StatTile fast label="Expected to survive" value={i.expectedSurviving} format={fmtInt} hint={`of ${fmtInt(i.trees)} planted`} />
+      <StatTile fast label="Residents reached" value={i.residents} format={fmtCompact} hint="live in targeted blocks" />
+      <StatTile fast label="To low-income" value={i.shareLowIncome} format={(n) => fmtPct(n)} accent="#a78bfa" hint="share of cooling" />
+      <StatTile fast label="In HOLC C/D" value={i.shareHolcCD} format={(n) => fmtPct(n)} hint="share of trees, redlined areas" />
+      <StatTile fast label="CO₂ stored" value={i.co2LbYr} format={(n) => `${fmtCompact(n)} lb`} hint={`per year ${horizon}`} />
+      <StatTile fast label="Stormwater" value={i.stormGalYr} format={(n) => `${fmtCompact(n)} gal`} hint={`per year ${horizon}`} />
+      <StatTile fast label="Benefits" value={i.benefitUsdYr} format={(n) => fmtUsd(n)} hint={`per year ${horizon}`} />
+      <StatTile fast label="Cooling delivered" value={i.coolingPersonF} format={fmtCompact} hint="person-°F" />
     </div>
   )
 }
