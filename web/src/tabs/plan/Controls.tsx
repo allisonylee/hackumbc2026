@@ -23,7 +23,7 @@ const WEIGHT_META: Record<keyof Weights, { label: string; hint: string; range: s
   heat: { label: 'Heat', hint: 'Cooling × residents reached per dollar', range: '[&_[data-slot=slider-range]]:bg-heat' },
   equity: { label: 'Equity', hint: 'Boost for low-income, high-poverty blocks', range: '[&_[data-slot=slider-range]]:bg-equity' },
   health: { label: 'Health', hint: 'Boost for blocks with more asthma and social vulnerability', range: '[&_[data-slot=slider-range]]:bg-rose-400' },
-  eco: { label: 'Eco co-benefits', hint: 'Flat credit per tree for CO₂ and stormwater, wherever it is', range: '[&_[data-slot=slider-range]]:bg-canopy' },
+  eco: { label: 'Eco co-benefits', hint: 'Other benefits (CO₂ stored, stormwater absorption, etc.)', range: '[&_[data-slot=slider-range]]:bg-canopy' },
 }
 
 const TREE_PACE = 10_000
