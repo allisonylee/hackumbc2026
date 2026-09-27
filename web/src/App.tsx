@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { NavBar } from '@/components/NavBar'
+import { HomePage } from '@/components/HomePage'
 import { MapCanvas } from '@/map/MapCanvas'
 import { loadData } from '@/lib/data'
 import { useStore, type Tab } from '@/store'
@@ -39,7 +40,6 @@ function TabPanels() {
         transition={{ duration: 0.25 }}
       >
         <Routes location={location}>
-          <Route path="/" element={<Navigate to="/current" replace />} />
           <Route path="/current" element={<CurrentTab />} />
           <Route path="/plan" element={<PlanTab />} />
           <Route path="/learn" element={<LearnTab />} />
@@ -50,8 +50,35 @@ function TabPanels() {
   )
 }
 
-export default function App() {
+/** The homepage at `/`; everything else is the app. Data keeps loading in the background either way. */
+function Shell({ progress, error }: { progress: number; error: string | null }) {
   const data = useStore((s) => s.data)
+  const { pathname } = useLocation()
+  if (pathname === '/') return <HomePage />
+  return (
+    <>
+      {data && <MapCanvas />}
+      {data && (
+        <>
+          <NavBar />
+          <TabPanels />
+          <ChatDrawer />
+          <FootprintDialog />
+          <EvaluationDialog />
+        </>
+      )}
+      <AnimatePresence>
+        {!data && (
+          <motion.div key="loading" exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+            <LoadingScreen progress={progress} error={error} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
+export default function App() {
   const setData = useStore((s) => s.setData)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -67,23 +94,7 @@ export default function App() {
       <TooltipProvider delayDuration={200}>
         <RouteSync />
         <div className="relative h-full w-full overflow-hidden bg-[#0b0f0e] text-white">
-          {data && <MapCanvas />}
-          {data && (
-            <>
-              <NavBar />
-              <TabPanels />
-              <ChatDrawer />
-              <FootprintDialog />
-              <EvaluationDialog />
-            </>
-          )}
-          <AnimatePresence>
-            {!data && (
-              <motion.div key="loading" exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
-                <LoadingScreen progress={progress} error={error} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <Shell progress={progress} error={error} />
         </div>
       </TooltipProvider>
     </BrowserRouter>
