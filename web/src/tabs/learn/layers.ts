@@ -165,8 +165,9 @@ export function useLearnLayers(active: boolean): TabLayers {
         getFillColor: t(900),
       },
       pickable: false,
-      // Hidden or flat hexes must not occlude the HOLC shading (e.g. while beat 1's columns shrink away).
-      parameters: { depthWriteEnabled: mode.alpha > 0 && mode.height !== 'flat' },
+      // Hidden hexes must not occlude the HOLC shading (e.g. while beat 1's columns shrink away). Visible
+      // ones keep depth so collapsing columns still draw in the right order.
+      parameters: { depthWriteEnabled: mode.alpha > 0 },
       ...before(beforeId),
     })
 
@@ -231,6 +232,9 @@ export function useLearnLayers(active: boolean): TabLayers {
       updateTriggers: { getFillColor: [beat, selNb], getLineColor: [beat, selNb], getLineWidth: [beat, selNb] },
       transitions: { getFillColor: t(800), getLineColor: t(800) },
       pickable: beat === 'cost',
+      // Always on top: these flat fills share the hexes' plane and would otherwise flicker (z-fight) or be
+      // hidden by columns that are still collapsing when the beat starts.
+      parameters: { depthCompare: 'always' },
       ...before(beforeId),
     })
 
