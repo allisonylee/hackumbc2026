@@ -2,14 +2,13 @@ import type { ReactNode } from 'react'
 import { ClipboardCheck, Gauge, Sprout, Target } from 'lucide-react'
 import { useStore } from '@/store'
 import type { Stats } from '@/lib/types'
-import { shownLimitations } from '@/lib/data'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { StatTile } from '@/components/StatTile'
 import { featureLabel, fmtInt, fmtPct, fmtUsd } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { Bullets, DIALOG_CLASS, MockNote, Section, SourceLink, TABLE_CELL, TABLE_HEAD } from './parts'
+import { DIALOG_CLASS, MockNote, Section, SourceLink, TABLE_CELL, TABLE_HEAD } from './parts'
 
 /** Outcome metrics and how to measure them (research.md §7). */
 const METRICS: { metric: string; source: ReactNode; cadence: string }[] = [
@@ -197,14 +196,6 @@ function ModelValidation({ stats }: { stats: Stats }) {
         <CoolingScale ours={ours} observed={-regression.slopeFPer10pct} linear={-m.baselines.linearSlopeFPer10pct} litLow={litLow} litHigh={litHigh} />
       </Section>
 
-      <Section title="Known limits">
-        <Bullets
-          items={[
-            ...shownLimitations(m.limitations),
-            'Not yet shown: sensitivity of the plan to crown size, and a 2013→2021 backtest of canopy change vs. temperature change.',
-          ]}
-        />
-      </Section>
     </>
   )
 }

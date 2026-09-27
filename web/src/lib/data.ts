@@ -61,6 +61,6 @@ export async function loadOptional<T>(name: string): Promise<T | null> {
 export const loadCorpusChunks = () => loadOptional<CorpusChunk[]>('corpus_chunks.json')
 
 /** Model-card limitations shown in the UI (a few pipeline entries are left out on purpose). */
-const HIDDEN_LIMITATIONS = ['Crown-size sensitivity']
+const HIDDEN_LIMITATIONS = ['Crown-size sensitivity', "The model's canopy response steepens"]
 export const shownLimitations = (limitations: string[]) =>
   limitations.filter((l) => !HIDDEN_LIMITATIONS.some((p) => l.startsWith(p)))
