@@ -10,7 +10,7 @@ export function HomePage() {
   const rise = (delay: number) => ({
     initial: { opacity: 0, y: reduce ? 0 : 12 },
     animate: { opacity: 1, y: 0 },
-    transition: { delay: reduce ? 0 : delay, duration: 0.6, ease: 'easeOut' as const },
+    transition: { delay: reduce ? 0 : delay, duration: 0.9, ease: [0.22, 1, 0.36, 1] as const },
   })
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-[#0b0f0e] px-4 text-center text-white">
@@ -20,10 +20,10 @@ export function HomePage() {
         aria-hidden
       />
       <SproutLogo size={112} />
-      <motion.h1 {...rise(0.9)} className="mt-6 font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+      <motion.h1 {...rise(0.8)} className="mt-6 font-display text-4xl font-semibold tracking-tight sm:text-5xl">
         A Tree Grows in Baltimore
       </motion.h1>
-      <motion.div {...rise(1.2)}>
+      <motion.div {...rise(1.05)}>
         <button
           type="button"
           onClick={() => navigate('/current')}

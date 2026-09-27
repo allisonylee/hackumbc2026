@@ -16,7 +16,9 @@ import { before, EMPTY_TAB_LAYERS, type TabLayers, type Tooltip } from '@/map/ty
 import { useDerived, type Derived } from './derived'
 import { focusNb, noteViewport, prefersReducedMotion, setHoveredIfChanged, useCurrentUi } from './ui'
 
-const RISE_MS = 1800
+const RISE_MS = 2200
+/** Share of the rise over which the hexes' color fades in (so the map fills in rather than popping). */
+const FADE_PART = 0.6
 export const LABEL_MIN_ZOOM = 12.5
 export const SITES_MIN_ZOOM = 14
 export const TREES_MIN_ZOOM = 15
@@ -55,10 +57,13 @@ export function hexColor(h: Hex, o: HexColorOpts): RGBA {
   return [rgb[0], rgb[1], rgb[2], 255]
 }
 
-/** elevationScale multiplier animating 0 → 1 once per session, when the map is ready. */
+/**
+ * Intro animation, once per session when the map is ready: `rise` (elevationScale multiplier, ease-out)
+ * and `fade` (opacity multiplier, ease-in-out over the first FADE_PART of the rise).
+ */
 let hasRisen = false
 function useRise(ready: boolean) {
-  const [rise, setRise] = useState(() => (hasRisen || prefersReducedMotion() ? 1 : 0))
+  const [anim, setAnim] = useState(() => (hasRisen || prefersReducedMotion() ? { rise: 1, fade: 1 } : { rise: 0, fade: 0 }))
   useEffect(() => {
     if (!ready || hasRisen) return
     hasRisen = true
@@ -67,16 +72,17 @@ function useRise(ready: boolean) {
     let raf = 0
     const step = (now: number) => {
       const t = Math.min(1, (now - t0) / RISE_MS)
-      setRise(1 - (1 - t) ** 3)
+      const f = Math.min(1, t / FADE_PART)
+      setAnim({ rise: 1 - (1 - t) ** 3, fade: f * f * (3 - 2 * f) })
       if (t < 1) raf = requestAnimationFrame(step)
     }
     raf = requestAnimationFrame(step)
     return () => {
       cancelAnimationFrame(raf)
-      setRise(1)
+      setAnim({ rise: 1, fade: 1 })
     }
   }, [ready])
-  return rise
+  return anim
 }
 
 function useTrees(want: boolean) {
@@ -116,7 +122,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
   const selectedNb = useStore((s) => s.selectedNb)
   const deltas = useCurrentUi((s) => s.deltas)
   const deltasKey = useCurrentUi((s) => s.deltasKey)
-  const rise = useRise(active && !!data && !!beforeId)
+  const { rise, fade } = useRise(active && !!data && !!beforeId)
   const trees = useTrees(active && toggles.trees && zoom >= TREES_MIN_ZOOM)
 
   const reduce = prefersReducedMotion()
@@ -136,7 +142,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
       elevationScale: derived.heightPerF * rise,
       getElevation: (d) => (elevOn ? Math.max(0, d.heatAnom + (deltas?.get(d.h3) ?? 0)) : 0),
       getFillColor: (d) => hexColor(d, opts),
-      opacity: hexOpacity,
+      opacity: hexOpacity * fade,
       visible: !bivariate,
       pickable: true,
       autoHighlight: true,
@@ -154,7 +160,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
       },
       ...before(beforeId),
     })
-  }, [active, data, derived, colorBy, deltas, deltasKey, rise, elevOn, hexOpacity, bivariate, reduce, beforeId])
+  }, [active, data, derived, colorBy, deltas, deltasKey, rise, fade, elevOn, hexOpacity, bivariate, reduce, beforeId])
 
   // ---- Neighborhoods: pick/bivariate fill, outlines, labels ----
   const nbLayers = useMemo(() => {

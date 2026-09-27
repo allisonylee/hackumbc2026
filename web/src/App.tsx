@@ -55,11 +55,30 @@ function TabPanels() {
  * just fades the homepage away. The tab UI and layers mount only after the fade finishes: building them
  * (14k hexes) during the fade would stall it, and this way the columns' rise plays in view.
  */
-function Shell({ progress, error }: { progress: number; error: string | null }) {
+function Shell() {
   const data = useStore((s) => s.data)
+  const setData = useStore((s) => s.setData)
   const setHome = useStore((s) => s.setHome)
   const { pathname } = useLocation()
   const isHome = pathname === '/'
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+
+  // Load the data (and so mount the map) after the homepage's intro animation: parsing the JSON and
+  // starting WebGL on the main thread would stutter it. Leaving the homepage early starts it at once.
+  const [loadNow, setLoadNow] = useState(!isHome)
+  if (!isHome && !loadNow) setLoadNow(true)
+  useEffect(() => {
+    if (loadNow) return
+    const t = window.setTimeout(() => setLoadNow(true), HOME_INTRO_MS)
+    return () => window.clearTimeout(t)
+  }, [loadNow])
+  useEffect(() => {
+    if (!loadNow) return
+    loadData((done, total) => setProgress(done / total))
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+  }, [loadNow, setData])
   const [homeGone, setHomeGone] = useState(!isHome)
   if (isHome && homeGone) setHomeGone(false)
   const showApp = !isHome && homeGone
@@ -69,7 +88,9 @@ function Shell({ progress, error }: { progress: number; error: string | null }) 
       {data && <MapCanvas />}
       {data && showApp && (
         <>
-          <NavBar />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
+            <NavBar />
+          </motion.div>
           <TabPanels />
           <ChatDrawer />
           <FootprintDialog />
@@ -94,23 +115,16 @@ function Shell({ progress, error }: { progress: number; error: string | null }) 
   )
 }
 
+/** How long the homepage's intro animation runs before data loading starts behind it. */
+const HOME_INTRO_MS = 2000
+
 export default function App() {
-  const setData = useStore((s) => s.setData)
-  const [progress, setProgress] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    loadData((done, total) => setProgress(done / total))
-      .then(setData)
-      .catch((e: Error) => setError(e.message))
-  }, [setData])
-
   return (
     <BrowserRouter>
       <TooltipProvider delayDuration={200}>
         <RouteSync />
         <div className="relative h-full w-full overflow-hidden bg-[#0b0f0e] text-white">
-          <Shell progress={progress} error={error} />
+          <Shell />
         </div>
       </TooltipProvider>
     </BrowserRouter>
