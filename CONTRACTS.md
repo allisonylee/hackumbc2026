@@ -156,7 +156,19 @@ baselines(p: Params): { random: Result['impact'], lowestCanopy: ..., tes?: ... }
 
 ## Chat API
 `POST /api/chat`
-Request: `{ messages: [{role, content}], mode?: "learn" }`
+Request:
+```ts
+{
+  messages: [{ role: "user" | "assistant", content: string }],  // 1–10 messages, each ≤ 2,000 chars; last is "user"
+  mode?: "learn",
+  context?: {                    // optional facts from the UI; unknown keys are ignored
+    nb?: string,                 // a neighborhood name (neighborhoods.geojson `name`)
+    site?: { id: string, nb: string, species: string, cost: number,
+             space: string | null, rank?: number, shap?: [string, number][] }  // from a Plan site popup
+  }
+}
+```
+Invalid requests get HTTP 422; more than 10 per minute from one IP get HTTP 429.
 Response: NDJSON stream, one JSON object per line:
 ```
 {"type":"sources","items":[{"n":1,"title":"...","url":"..."}]}
@@ -164,3 +176,8 @@ Response: NDJSON stream, one JSON object per line:
 ...
 {"type":"done","tokens":212,"energyWh":0.021,"measured":true,"cached":false}
 ```
+`sources` always comes first (its `items` may be empty). The stream ends with either `done` or, if generation fails after the stream has started:
+```
+{"type":"error","message":"The guide is offline right now."}
+```
+Cached answers have `cached: true` and `energyWh: 0`.

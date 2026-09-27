@@ -87,3 +87,4 @@ Also include the branch/worktree and the last commit hash, and note any uncommit
 - MapLibre must be imported via `@/lib/maplibre` and passed as `<Map mapLib={maplibregl}>`. The default build's inline worker breaks under Vite's dev prebundling.
 - MapLibre is pinned to v5, the version deck.gl 9.x is known to work with. deck.gl's interleaved overlay threw errors on v6.
 - `pipeline/data/raw/` is gitignored (~390 MB). Worktrees get it through a symlink to the main checkout.
+- `pipeline/data/interim/` is gitignored too, and the trained heat model (`interim/model/`) exists only where Stage 2 ran (the pipeline worktree). Running `export_web` in a checkout without it silently falls back to the v1 linear model and deletes `heat_model.json`. Export from the pipeline worktree, or check that the log says v2, not "v1 linear".

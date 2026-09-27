@@ -39,7 +39,7 @@ const BUILTIN: CorpusChunk[] = [
   {
     id: 'b5', title: 'Trees for narrow sidewalks', source: 'USFS Northeast Community Tree Guide',
     url: 'https://www.itreetools.org/documents/443/PSW_GTR202_Northeast_CTG.pdf',
-    text: 'Narrow tree lawns and spots under power lines call for small trees such as Eastern Redbud, Serviceberry or American Hornbeam. Large shade trees need wide planting strips and no overhead wires.',
+    text: 'Narrow tree lawns and spots under power lines call for small trees such as Eastern Redbud or Serviceberry. Large shade trees need wide planting strips and no overhead wires.',
   },
 ]
 
