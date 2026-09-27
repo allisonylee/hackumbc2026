@@ -32,7 +32,7 @@ export type Step = {
 }
 
 /** 3D buildings on for these beats (restored afterwards). */
-export const BUILDING_STEPS = new Set<StepId>(['cost'])
+export const BUILDING_STEPS = new Set<StepId>([])
 
 /** The city's yearly pace and the pace the goal needs, as cited text (Howard Center, Code Red, 2019). */
 export const PACE_NEEDED_PER_YEAR = 25_000
@@ -116,14 +116,10 @@ export const STEPS: Step[] = [
     title: () => 'Heat lands on people',
     body: ({ hc }) =>
       hc
-        ? `Compare the ${hc.hot.names.length} hottest and ${hc.cool.names.length} coolest neighborhoods. Below: ${hc.hot.names[0]}, the hottest, at street level.`
+        ? `Compare the ${hc.hot.names.length} hottest neighborhoods (red) with the ${hc.cool.names.length} coolest (teal).`
         : 'Heat is not just discomfort: it strains hearts and lungs, and it hits hardest where incomes are lowest.',
     source: 'CDC PLACES (adult asthma); Census ACS 5-year (poverty); NOAA Heat Watch 2018',
-    camera: ({ data, hc }) => {
-      const f = hc && data.nbByName.get(hc.hot.names[0])
-      if (!f) return null
-      return { kind: 'point', center: [f.properties.labelLng, f.properties.labelLat], zoom: 15.6, pitch: 62, bearing: 30 }
-    },
+    camera: ({ data }) => fit(featureBounds(data.city), 0, 0),
     Overlay: HumanCostTiles,
   },
   {

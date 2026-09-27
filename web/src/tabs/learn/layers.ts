@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { H3HexagonLayer } from '@deck.gl/geo-layers'
-import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
+import { GeoJsonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import polygonClipping, { type Geom } from 'polygon-clipping'
 import type { LayersList, PickingInfo } from '@deck.gl/core'
 import { useStore } from '@/store'
@@ -22,7 +22,7 @@ const HEX_MODES: Record<Beat, HexMode> = {
   history: { color: 'heat', alpha: 0, height: 'flat' },
   echo: { color: 'heat', alpha: 0, height: 'flat' },
   canopy: { color: 'canopy', alpha: 225, height: 'heat' },
-  cost: { color: 'heat', alpha: 80, height: 'flat' },
+  cost: { color: 'heat', alpha: 35, height: 'flat' },
   gap: { color: 'canopy', alpha: 200, height: 'flat' },
   turn: { color: 'canopy', alpha: 55, height: 'flat' },
   vision: { color: 'vision', alpha: 225, height: 'vision' },
@@ -31,6 +31,9 @@ const HEX_MODES: Record<Beat, HexMode> = {
 }
 
 const MAX_HEIGHT_M = 650
+/** Beat 5 label spacing in degrees at the city-wide view (roughly one label's width and height). */
+const LABEL_DX = 0.045
+const LABEL_DY = 0.012
 const rgba = (c: RGB | readonly number[], a: number): RGBA => [c[0], c[1], c[2], a]
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 const CLEAR: RGBA = [0, 0, 0, 0]
@@ -71,8 +74,20 @@ export function useLearnLayers(active: boolean): TabLayers {
         return cut.length ? [{ ...f, geometry: { type: 'MultiPolygon' as const, coordinates: cut } }] : []
       }),
     }
+    // Beat 5 labels, hottest first then coolest, skipping any that would overlap one already placed.
+    // The beat always shows the whole city, so a fixed spacing in degrees (~one label box) is enough.
+    const props = data.nbs.features.map((f) => f.properties)
+    const ranked = [
+      ...props.filter((p) => hc?.hot.names.includes(p.name)).sort((a, b) => b.heat - a.heat),
+      ...props.filter((p) => hc?.cool.names.includes(p.name)).sort((a, b) => a.heat - b.heat),
+    ]
+    const costLabels: typeof ranked = []
+    for (const p of ranked) {
+      if (costLabels.every((q) => Math.abs(q.labelLng - p.labelLng) > LABEL_DX || Math.abs(q.labelLat - p.labelLat) > LABEL_DY)) costLabels.push(p)
+    }
     return {
       holcInCity,
+      costLabels,
       lo, hi,
       hot: new Set(hc?.hot.names ?? []),
       cool: new Set(hc?.cool.names ?? []),
@@ -196,8 +211,8 @@ export function useLearnLayers(active: boolean): TabLayers {
       getFillColor: (f) => {
         const p = f.properties
         if (beat === 'cost') {
-          if (base.hot.has(p.name)) return rgba(BRAND.heat, 120)
-          if (base.cool.has(p.name)) return rgba(BRAND.cool, 100)
+          if (base.hot.has(p.name)) return rgba(BRAND.heat, 190)
+          if (base.cool.has(p.name)) return rgba(BRAND.cool, 170)
         }
         if (beat === 'gap' && p.canopy < 0.2) return rgba(BRAND.lowCanopy, 40)
         if (beat === 'help' && p.name === selNb) return rgba(BRAND.equity, 35)
@@ -220,6 +235,31 @@ export function useLearnLayers(active: boolean): TabLayers {
     })
 
     const layers: LayersList = [hexLayer, holcLayer, nbLayer]
+
+    // Beat 5: name the hottest and coolest neighborhoods that have room for a label.
+    if (beat === 'cost') {
+      layers.push(
+        new TextLayer<NbFeature['properties']>({
+          id: 'learn-cost-labels',
+          data: base.costLabels,
+          getPosition: (p) => [p.labelLng, p.labelLat],
+          getText: (p) => p.name,
+          getSize: 11,
+          sizeUnits: 'pixels',
+          getColor: [255, 255, 255, 235],
+          fontFamily: 'Inter Variable, system-ui, sans-serif',
+          fontWeight: 600,
+          characterSet: 'auto',
+          fontSettings: { sdf: true },
+          outlineWidth: 4,
+          outlineColor: [11, 15, 14, 230],
+          maxWidth: 8,
+          wordBreak: 'break-word',
+          parameters: { depthCompare: 'always' },
+          pickable: false,
+        }),
+      )
+    }
 
     if (turnSites.length) {
       const on = beat === 'turn'
