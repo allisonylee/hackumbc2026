@@ -57,12 +57,7 @@ export function ModelCardContent({ stats }: { stats: Stats }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <StatTile label="Spatial-CV R²" value={m.r2Spatial} format={(n) => n.toFixed(2)} hint="held-out areas" accent="#4ade80" />
         <StatTile label="Linear baseline" value={m.baselines.linearR2Spatial} format={(n) => n.toFixed(2)} hint="R², same split" />
-        <StatTile
-          label="RMSE"
-          value={m.rmseSpatial}
-          format={(n) => fmtF(n)}
-          hint={`held-out areas; least-squares boosted trees (guessing the mean: ${fmtF(m.baselines.meanRmse)})`}
-        />
+        <StatTile label="Typical error" value={m.maeSpatial} format={(n) => fmtF(n)} hint="mean absolute, held-out areas" />
       </div>
 
       <section>
