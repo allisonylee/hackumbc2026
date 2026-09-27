@@ -3,6 +3,7 @@ import json
 import httpx
 from fastapi.testclient import TestClient
 
+from cache import AnswerCache
 from config import Settings
 from main import create_app
 
@@ -28,7 +29,9 @@ OK = [
 
 
 def client(transport, index=None, **kw) -> TestClient:
-    return TestClient(create_app(Settings(**kw), transport=transport, index=index, data=None))
+    # Empty answer cache: "Why do trees cool streets?" has a reviewed pre-generated answer.
+    return TestClient(create_app(Settings(**kw), transport=transport, index=index, data=None,
+                                 cache=AnswerCache(path=None)))
 
 
 def events(res) -> list[dict]:
