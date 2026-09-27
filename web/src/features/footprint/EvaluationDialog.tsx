@@ -70,11 +70,10 @@ function Body() {
         <TabsContent value="metrics" className="space-y-6">
           <Section title="Outputs of the current plan" icon={<Sprout className="size-4 text-emerald-400" aria-hidden />}>
             {impact ? (
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                 <StatTile label="Trees planned" value={impact.trees} accent="#4ade80" />
                 <StatTile label="Cost" value={impact.spent} format={(n) => fmtUsd(n)} />
                 <StatTile label="In low-income areas" value={impact.shareLowIncome} format={(n) => fmtPct(n)} accent="#a78bfa" />
-                <StatTile label="In HOLC C/D areas" value={impact.shareHolcCD} format={(n) => fmtPct(n)} accent="#a78bfa" />
               </div>
             ) : (
               <p className="text-sm text-white/50">Run a plan on the Plan tab to see its trees, cost and equity share here.</p>
