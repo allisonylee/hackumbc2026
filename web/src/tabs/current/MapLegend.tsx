@@ -1,11 +1,11 @@
 import { useStore } from '@/store'
 import { BivariateLegend, ContinuousLegend } from '@/components/Legend'
 import { RAMPS } from '@/lib/colors'
-import { fmtF, fmtPct, fmtSignedF, fmtUsd } from '@/lib/format'
+import { fmtF, fmtPct, fmtUsd } from '@/lib/format'
 import { useDerived } from './derived'
 
 export function MapLegend() {
-  const { colorBy, modelView, bivariate, heightByHeat } = useStore((s) => s.current)
+  const { colorBy, bivariate, heightByHeat } = useStore((s) => s.current)
   const mode3d = useStore((s) => s.map.mode3d)
   const derived = useDerived()
   if (!derived) return null
@@ -27,21 +27,11 @@ export function MapLegend() {
       heat: { title: 'Afternoon air temperature', ramp: RAMPS.heat, lo: fmtF(d.heat[0]), hi: fmtF(d.heat[1]) },
       income: { title: 'Median household income', ramp: RAMPS.income, lo: fmtUsd(d.income[0]), hi: fmtUsd(d.income[1]) },
       asthma: { title: 'Adults with asthma', ramp: RAMPS.asthma, lo: `${d.asthma[0].toFixed(1)}%`, hi: `${d.asthma[1].toFixed(1)}%` },
-      model:
-        modelView === 'pred'
-          ? { title: 'Model-predicted temperature', ramp: RAMPS.heat, lo: fmtF(d.heat[0]), hi: fmtF(d.heat[1]) }
-          : { title: 'Measured − predicted', ramp: RAMPS.residual, lo: fmtSignedF(d.resid[0]), mid: '0', hi: fmtSignedF(d.resid[1]) },
     }[colorBy]
     body = (
       <>
         <ContinuousLegend {...props} />
-        {colorBy === 'model' && modelView === 'resid' && (
-          <div className="mt-1 flex justify-between text-[10px] text-white/45">
-            <span>cooler than predicted</span>
-            <span>hotter than predicted</span>
-          </div>
-        )}
-        {(colorBy === 'income' || colorBy === 'asthma' || (colorBy === 'model' && modelView === 'resid')) && (
+        {(colorBy === 'income' || colorBy === 'asthma') && (
           <div className="mt-1 flex items-center gap-1.5 text-[10px] text-white/45">
             <span className="inline-block size-2 rounded-sm bg-[#787878]" /> no data
           </div>

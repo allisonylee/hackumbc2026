@@ -3,7 +3,7 @@ import type { AppData, Baselines, Params, ParetoPoint, Result } from '@/lib/type
 import type { CameraView } from '@/lib/views'
 
 export type Tab = 'current' | 'plan' | 'learn'
-export type ColorBy = 'canopy' | 'heat' | 'income' | 'asthma' | 'model'
+export type ColorBy = 'canopy' | 'heat' | 'income' | 'asthma'
 
 /** Extra facts the chat can send to the backend (see CONTRACTS.md Chat API / router). */
 export type ChatContext = {
@@ -47,7 +47,6 @@ type State = {
 
   current: {
     colorBy: ColorBy
-    modelView: 'pred' | 'resid'
     heightByHeat: boolean
     bivariate: null | 'heat' | 'income'
     layers: { holc: boolean; sites: boolean; cooling: boolean; trees: boolean }
@@ -111,7 +110,6 @@ export const useStore = create<State>()((set) => ({
 
   current: {
     colorBy: 'canopy',
-    modelView: 'pred',
     heightByHeat: true,
     bivariate: null,
     layers: { holc: false, sites: true, cooling: false, trees: true },

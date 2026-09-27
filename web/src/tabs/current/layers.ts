@@ -28,7 +28,6 @@ const NO_DATA: RGBA = [120, 120, 120, 150]
 
 export type HexColorOpts = {
   colorBy: ColorBy
-  modelView: 'pred' | 'resid'
   deltas: Map<string, number> | null
   domains: Derived['domains']
 }
@@ -51,11 +50,6 @@ export function hexColor(h: Hex, o: HexColorOpts): RGBA {
     case 'asthma':
       if (h.asthma == null) return NO_DATA
       rgb = RAMPS.asthma(norm(h.asthma, ...o.domains.asthma))
-      break
-    case 'model':
-      if (o.modelView === 'pred') rgb = RAMPS.heat(norm(h.heatPred + d, ...o.domains.heat))
-      else if (h.heatResid == null) return NO_DATA
-      else rgb = RAMPS.residual(norm(h.heatResid, ...o.domains.resid))
       break
   }
   return [rgb[0], rgb[1], rgb[2], 255]
@@ -117,7 +111,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
   const beforeId = useStore((s) => s.map.labelLayerId)
   const zoom = useStore((s) => s.map.zoom)
   const mode3d = useStore((s) => s.map.mode3d)
-  const { colorBy, modelView, heightByHeat, bivariate, layers: toggles } = useStore((s) => s.current)
+  const { colorBy, heightByHeat, bivariate, layers: toggles } = useStore((s) => s.current)
   const hoveredNb = useStore((s) => s.hovered.nb)
   const selectedNb = useStore((s) => s.selectedNb)
   const deltas = useCurrentUi((s) => s.deltas)
@@ -132,7 +126,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
   // ---- Hexes (rebuilt when color/height state changes) ----
   const hexLayer = useMemo(() => {
     if (!active || !data || !derived) return null
-    const opts: HexColorOpts = { colorBy, modelView, deltas, domains: derived.domains }
+    const opts: HexColorOpts = { colorBy, deltas, domains: derived.domains }
     return new H3HexagonLayer<Hex>({
       id: 'hex-current',
       data: data.hexes,
@@ -149,7 +143,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
       highlightColor: [255, 255, 255, 80],
       transitions: reduce ? undefined : { getElevation: 800, getFillColor: 800 },
       updateTriggers: {
-        getFillColor: [colorBy, modelView, deltasKey],
+        getFillColor: [colorBy, deltasKey],
         getElevation: [elevOn, deltasKey],
       },
       onHover: (info: PickingInfo<Hex>) => {
@@ -160,7 +154,7 @@ export function useCurrentLayers(active: boolean): TabLayers {
       },
       ...before(beforeId),
     })
-  }, [active, data, derived, colorBy, modelView, deltas, deltasKey, rise, elevOn, hexOpacity, bivariate, reduce, beforeId])
+  }, [active, data, derived, colorBy, deltas, deltasKey, rise, elevOn, hexOpacity, bivariate, reduce, beforeId])
 
   // ---- Neighborhoods: pick/bivariate fill, outlines, labels ----
   const nbLayers = useMemo(() => {

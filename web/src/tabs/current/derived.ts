@@ -12,16 +12,12 @@ export type NbHexSummary = {
   /** mean hex canopy (the what-if slider works on this) */
   canopy: number
   measured: number | null
-  /** mean model prediction over the hexes that have a measurement (fair comparison) */
-  predMeasured: number | null
   pred: number
   holcShare: Partial<Record<HolcGrade, number>>
-  /** mean SHAP contribution per feature (hexes carry their top 3; others count as 0) */
-  shap: [string, number][]
 }
 
 export type Derived = {
-  domains: { canopy: Domain; heat: Domain; income: Domain; asthma: Domain; resid: Domain }
+  domains: { canopy: Domain; heat: Domain; income: Domain; asthma: Domain }
   /** °F; heatAnom is measured against this */
   cityMedianF: number
   /** metres of extrusion per °F above the median, scaled so the hottest blocks reach a fixed height */
@@ -81,8 +77,6 @@ export function getDerived(d: AppData): Derived {
     ? quantile(offsets, 0.5)
     : quantile(d.hexes.map((h) => h.heatPred - h.heatAnom).sort((a, b) => a - b), 0.5)
 
-  const residAbs = domainOf(d.hexes.map((h) => (h.heatResid == null ? null : Math.abs(h.heatResid))), 0, 0.98)[1] || 1
-
   const anomHi = domainOf(d.hexes.map((h) => h.heatAnom))[1]
   const heightPerF = TOP_HEIGHT_M / (anomHi > 0 ? anomHi : 1)
 
@@ -93,7 +87,6 @@ export function getDerived(d: AppData): Derived {
       heat: domainOf(d.hexes.map((h) => h.heat ?? h.heatPred)),
       income: domainOf(d.hexes.map((h) => h.income)),
       asthma: domainOf(d.hexes.map((h) => h.asthma)),
-      resid: [-residAbs, residAbs],
     },
     cityMedianF,
     heightPerF,
@@ -129,19 +122,13 @@ export function nbHexSummary(d: AppData, nb: string): NbHexSummary | null {
     const measured = hexes.filter((h) => h.heat != null)
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
     const holc: Partial<Record<HolcGrade, number>> = {}
-    const shap = new Map<string, number>()
-    for (const h of hexes) {
-      if (h.holc) holc[h.holc] = (holc[h.holc] ?? 0) + 1 / hexes.length
-      for (const [f, v] of h.shap) shap.set(f, (shap.get(f) ?? 0) + v / hexes.length)
-    }
+    for (const h of hexes) if (h.holc) holc[h.holc] = (holc[h.holc] ?? 0) + 1 / hexes.length
     res = {
       n: hexes.length,
       canopy: mean(hexes.map((h) => h.canopy)),
       measured: measured.length ? mean(measured.map((h) => h.heat as number)) : null,
-      predMeasured: measured.length ? mean(measured.map((h) => h.heatPred)) : null,
       pred: mean(hexes.map((h) => h.heatPred)),
       holcShare: holc,
-      shap: [...shap.entries()].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3),
     }
   }
   m.set(nb, res)

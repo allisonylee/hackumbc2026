@@ -7,7 +7,7 @@ import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { Slider } from '@/components/ui/slider'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { HOLC_COLORS, toCss } from '@/lib/colors'
-import { featureLabel, fmtF, fmtInt, fmtPct, fmtSignedF, fmtUsd } from '@/lib/format'
+import { fmtF, fmtInt, fmtPct, fmtSignedF, fmtUsd } from '@/lib/format'
 import type { AppData, HolcGrade, NbProps } from '@/lib/types'
 import { nbHexSummary, useDerived, type NbHexSummary } from './derived'
 import { useCurrentUi } from './ui'
@@ -49,26 +49,6 @@ function HolcShare({ share }: { share: Partial<Record<HolcGrade, number>> }) {
   )
 }
 
-function ShapBars({ shap }: { shap: [string, number][] }) {
-  const max = Math.max(...shap.map(([, v]) => Math.abs(v)), 1e-9)
-  return (
-    <div className="space-y-1">
-      {shap.map(([f, v]) => (
-        <div key={f} className="grid grid-cols-[7.5rem_1fr_3.5rem] items-center gap-2 text-xs">
-          <span className="truncate text-white/75">{featureLabel(f)}</span>
-          <div className="relative h-2">
-            <div
-              className="absolute top-0 h-2 rounded-full"
-              style={{ width: `${(Math.abs(v) / max) * 100}%`, background: v >= 0 ? '#f97316' : '#2dd4bf' }}
-            />
-          </div>
-          <span className={`text-right tabular-nums ${v >= 0 ? 'text-orange-300' : 'text-teal-300'}`}>{fmtSignedF(v)}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function WhatIf({ data, nb, summary }: { data: AppData; nb: string; summary: NbHexSummary }) {
   const model = useHeatModel()
   const setCurrent = useStore((s) => s.setCurrent)
@@ -93,7 +73,7 @@ function WhatIf({ data, nb, summary }: { data: AppData; nb: string; summary: NbH
     setRes(r)
     setDeltas(r?.deltas ?? null)
     const cur = useStore.getState().current
-    setCurrent({ whatIf: { nb, canopy: v }, ...(cur.colorBy === 'heat' || cur.colorBy === 'model' ? {} : { colorBy: 'heat', bivariate: null }) })
+    setCurrent({ whatIf: { nb, canopy: v }, ...(cur.colorBy === 'heat' ? {} : { colorBy: 'heat', bivariate: null }) })
   }
   const reset = () => {
     setTarget(summary.canopy)
@@ -226,26 +206,11 @@ export function NeighborhoodCard() {
           Plan trees here <ArrowRight className="size-4" />
         </button>
 
-        <section className="space-y-2 border-t border-white/10 pt-3">
-          <h3 className="font-display text-[13px] font-semibold">What the model sees</h3>
-          {summary ? (
-            <>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <Fact label="Measured">{summary.measured != null ? fmtF(summary.measured) : 'no sensor data'}</Fact>
-                <Fact label="Model predicts">{fmtF(summary.predMeasured ?? summary.pred)}</Fact>
-              </div>
-              {summary.shap.length > 0 && (
-                <div>
-                  <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-white/45">Top drivers vs. city average</div>
-                  <ShapBars shap={summary.shap} />
-                </div>
-              )}
-              <WhatIf key={p.name} data={data} nb={p.name} summary={summary} />
-            </>
-          ) : (
-            <p className="text-xs text-white/50">No hex-level model data for this neighborhood.</p>
-          )}
-        </section>
+        {summary && (
+          <section className="border-t border-white/10 pt-3">
+            <WhatIf key={p.name} data={data} nb={p.name} summary={summary} />
+          </section>
+        )}
       </div>
     </motion.section>
   )

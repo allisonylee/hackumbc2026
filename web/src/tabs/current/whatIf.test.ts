@@ -35,7 +35,6 @@ describe('what-if', () => {
 
   it('summarizes the neighborhood hexes', () => {
     expect(s.n).toBeGreaterThan(0)
-    expect(s.shap.length).toBeLessThanOrEqual(3)
     expect(getDerived(data).cityMedianF).toBeGreaterThan(50)
   })
 

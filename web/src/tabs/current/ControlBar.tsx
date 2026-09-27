@@ -18,7 +18,6 @@ const COLOR_MODES: { id: ColorBy; label: string }[] = [
   { id: 'heat', label: 'Heat' },
   { id: 'income', label: 'Income' },
   { id: 'asthma', label: 'Asthma' },
-  { id: 'model', label: 'Model' },
 ]
 
 function NeighborhoodSearch() {
@@ -123,7 +122,7 @@ function LayersMenu() {
 }
 
 export function ControlBar() {
-  const { colorBy, modelView, heightByHeat, bivariate } = useStore((s) => s.current)
+  const { colorBy, heightByHeat, bivariate } = useStore((s) => s.current)
   const setCurrent = useStore((s) => s.setCurrent)
   const mode3d = useStore((s) => s.map.mode3d)
   const segBtn = 'h-7 px-2 text-xs text-white/65 data-[state=on]:bg-white/15 data-[state=on]:text-white'
@@ -151,20 +150,6 @@ export function ControlBar() {
           ))}
         </ToggleGroup>
       </div>
-
-      {colorBy === 'model' && !bivariate && (
-        <div className="flex items-center gap-2">
-          <span className="w-14 shrink-0 text-[11px] font-medium uppercase tracking-wider text-white/45">Show</span>
-          <ToggleGroup
-            type="single" size="sm" spacing={0} value={modelView}
-            onValueChange={(v) => v && setCurrent({ modelView: v as 'pred' | 'resid' })}
-            className="rounded-lg bg-white/5 p-0.5" aria-label="Model view"
-          >
-            <ToggleGroupItem value="pred" className={segBtn}>Predicted °F</ToggleGroupItem>
-            <ToggleGroupItem value="resid" className={segBtn}>Error (measured − predicted)</ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <ToggleGroup
