@@ -1,9 +1,8 @@
-// Right panel (§8.4): impact tiles, Pareto chart, baselines, export, evaluation link.
+// Right panel (§8.4): impact tiles, plan vs. random, evaluation link.
 import { ClipboardCheck } from 'lucide-react'
 import { useStore } from '@/store'
 import { StatTile } from '@/components/StatTile'
 import { fmtCompact, fmtInt, fmtUsd } from '@/lib/format'
-import { ParetoChart } from './ParetoChart'
 import { BaselinesTable } from './BaselinesTable'
 
 function H({ children }: { children: React.ReactNode }) {
@@ -37,9 +36,7 @@ export function ImpactPanel() {
   return (
     <div className="space-y-3">
       <ImpactTiles />
-      <H>Equity vs. cooling</H>
-      <ParetoChart />
-      <H>Compared with simple strategies</H>
+      <H>Compared with random planting</H>
       <BaselinesTable />
       <button
         type="button"

@@ -1,6 +1,6 @@
 // Main-thread client for the optimizer worker. One shared worker for the whole app (Plan tab + story).
 import { useStore } from '@/store'
-import type { Baselines, Params, ParetoPoint, Result } from '@/lib/types'
+import type { Baselines, Params, Result } from '@/lib/types'
 import type { WorkerRequest, WorkerResponse } from './optimizer.worker'
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
@@ -45,7 +45,7 @@ function ensureWorker() {
   return ready
 }
 
-async function run<T>(type: 'allocate' | 'pareto' | 'baselines', params: Params) {
+async function run<T>(type: 'allocate' | 'baselines', params: Params) {
   await ensureWorker()
   const r = await send({ type, params })
   return { result: r.result as T, ms: r.ms }
@@ -53,7 +53,6 @@ async function run<T>(type: 'allocate' | 'pareto' | 'baselines', params: Params)
 
 export const optimizer = {
   allocate: (p: Params) => run<Result>('allocate', p),
-  pareto: (p: Params) => run<ParetoPoint[]>('pareto', p),
   baselines: (p: Params) => run<Baselines>('baselines', p),
 }
 

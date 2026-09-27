@@ -175,7 +175,6 @@ export type Result = {
   perHex: Record<string, number>
   impact: Impact
 }
-export type ParetoPoint = { quota: number; cooling: number; shareLowIncome: number }
 export type Baselines = { random: Result; lowestCanopy: Result; tes?: Result }
 
 // ---- Chat API ----

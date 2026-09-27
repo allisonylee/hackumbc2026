@@ -12,7 +12,7 @@ const COLS: Record<BaselineCol, { label: string; fmt: (n: number) => string; tit
   shareHolcCD: { label: 'HOLC C/D', fmt: (n) => fmtPct(n), title: 'Share of trees in redlined (C/D) areas' },
 }
 
-/** Your plan vs. simple strategies at the same budget; best value per column highlighted. */
+/** Your plan vs. random planting at the same budget; best value per column highlighted. */
 export function BaselinesTable() {
   const result = useStore((s) => s.plan.result)
   const baselines = useStore((s) => s.plan.baselines)
@@ -21,9 +21,7 @@ export function BaselinesTable() {
     const r: BaselineRow[] = [
       { id: 'plan', label: 'Your plan', impact: result.impact },
       { id: 'random', label: 'Random', impact: baselines.random.impact },
-      { id: 'lowestCanopy', label: 'Lowest canopy', impact: baselines.lowestCanopy.impact },
     ]
-    if (baselines.tes) r.push({ id: 'tes', label: 'Tree Equity gap', impact: baselines.tes.impact })
     return r
   }, [result, baselines])
   const best = useMemo(() => (rows ? bestPerColumn(rows) : null), [rows])

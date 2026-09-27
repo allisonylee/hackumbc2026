@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Impact, Site } from '@/lib/types'
 import {
   BUDGET_MAX, BUDGET_MIN, MAX_DELAY_MS, SLIDER_STEPS, STAGGER_LIMIT, bboxOf, bestPerColumn, budgetToSlider, computeBirths,
-  matchPreset, paretoNote, paretoNoteText, perturbedWeights, robustIds, sitesToCsv, sitesToGeoJson,
+  matchPreset, perturbedWeights, robustIds, sitesToCsv, sitesToGeoJson,
   sliderToBudget, sproutScale, PRESETS,
 } from './logic'
 
@@ -57,35 +57,6 @@ describe('sprout births', () => {
   })
 })
 
-describe('pareto note', () => {
-  const curve = [
-    { quota: 0, cooling: 1000, shareLowIncome: 0.4 },
-    { quota: 0.5, cooling: 995, shareLowIncome: 0.55 },
-    { quota: 0.75, cooling: 960, shareLowIncome: 0.7 },
-    { quota: 1, cooling: 700, shareLowIncome: 0.9 },
-  ]
-  it('picks the largest equity gain within 5% cooling loss', () => {
-    const n = paretoNote(curve)!
-    expect(n.gainPts).toBeCloseTo(30)
-    expect(n.lossPct).toBeCloseTo(4)
-    expect(paretoNoteText(n)).toContain('only 4%')
-  })
-  it('uses "less than 1%" for tiny losses', () => {
-    const n = paretoNote(curve.slice(0, 2))!
-    expect(paretoNoteText(n)).toContain('less than 1%')
-  })
-  it('falls back to the best ratio when every gain is costly', () => {
-    const n = paretoNote([
-      { quota: 0, cooling: 100, shareLowIncome: 0.2 },
-      { quota: 0.5, cooling: 80, shareLowIncome: 0.3 },
-      { quota: 1, cooling: 50, shareLowIncome: 0.6 },
-    ])!
-    expect(n.toShare).toBeCloseTo(0.6) // 40 pts / 50% beats 10 pts / 20%
-  })
-  it('is null for a flat curve', () => {
-    expect(paretoNote([{ quota: 0, cooling: 1, shareLowIncome: 0.5 }, { quota: 1, cooling: 1, shareLowIncome: 0.5 }])).toBeNull()
-  })
-})
 
 describe('bestPerColumn', () => {
   const imp = (c: number, s: number): Impact => ({

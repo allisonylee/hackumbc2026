@@ -6,7 +6,7 @@
 // (survival-weighted) cooling for the hex's residents, scaled by the priority multiplier, plus a
 // size-dependent eco credit. A heap holds each hex's next affordable site; the best value per dollar is bought
 // until the budget runs out.
-import type { Baselines, Hex, Impact, Params, ParetoPoint, Result, Site, TreeBenefit } from '@/lib/types'
+import type { Baselines, Hex, Impact, Params, Result, Site, TreeBenefit } from '@/lib/types'
 import { MaxHeap } from './heap'
 
 type Size = Site['size']
@@ -227,16 +227,6 @@ export function allocate(P: Prepared, p: Params): Result {
   }
   greedy(P, E, p, all, p.budget - spent, S)
   return impactOf(P, p, S.picked)
-}
-
-export function pareto(P: Prepared, p: Params, steps = 21): ParetoPoint[] {
-  const out: ParetoPoint[] = []
-  for (let i = 0; i < steps; i++) {
-    const quota = steps === 1 ? 0 : i / (steps - 1)
-    const r = allocate(P, { ...p, equityQuota: quota })
-    out.push({ quota, cooling: r.impact.coolingPersonF, shareLowIncome: r.impact.shareLowIncome })
-  }
-  return out
 }
 
 /** Deterministic PRNG (mulberry32). */

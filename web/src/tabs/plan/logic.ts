@@ -1,5 +1,5 @@
 // Pure helpers for the Plan tab UI (no React, no store). Tested in logic.test.ts.
-import type { Hex, Impact, ParetoPoint, Site, Weights } from '@/lib/types'
+import type { Hex, Impact, Site, Weights } from '@/lib/types'
 
 // ---------- Budget slider (log scale) ----------
 export const BUDGET_MIN = 25_000
@@ -77,38 +77,6 @@ export function sproutScale(age: number) {
   const t = age / SPROUT_MS - 1
   const c1 = 1.70158
   return 1 + (c1 + 1) * t * t * t + c1 * t * t
-}
-
-// ---------- Pareto annotation (§8.4) ----------
-export type ParetoNote = { fromShare: number; toShare: number; gainPts: number; lossPct: number }
-
-/**
- * "The first X points of equity cost only Y% of cooling": from the quota-0 plan, the largest gain in
- * low-income share whose cooling loss stays within `maxLoss`. Falls back to the point with the best
- * gain-per-loss when every gain costs more. Null when the curve is flat.
- */
-export function paretoNote(points: ParetoPoint[], maxLoss = 0.05): ParetoNote | null {
-  if (points.length < 2) return null
-  const pts = [...points].sort((a, b) => a.quota - b.quota)
-  const p0 = pts[0]
-  if (p0.cooling <= 0) return null
-  const cand = pts
-    .slice(1)
-    .map((p) => ({ p, gain: p.shareLowIncome - p0.shareLowIncome, loss: Math.max(0, 1 - p.cooling / p0.cooling) }))
-    .filter((c) => c.gain > 0.005)
-  if (!cand.length) return null
-  const within = cand.filter((c) => c.loss <= maxLoss)
-  const best = within.length
-    ? within.reduce((a, b) => (b.gain > a.gain ? b : a))
-    : cand.reduce((a, b) => (b.gain / Math.max(b.loss, 1e-9) > a.gain / Math.max(a.loss, 1e-9) ? b : a))
-  return { fromShare: p0.shareLowIncome, toShare: best.p.shareLowIncome, gainPts: best.gain * 100, lossPct: best.loss * 100 }
-}
-
-export function paretoNoteText(n: ParetoNote) {
-  const loss = n.lossPct < 1 ? 'less than 1%' : `only ${n.lossPct.toFixed(0)}%`
-  const from = Math.round(n.fromShare * 100)
-  const to = Math.round(n.toShare * 100)
-  return `The first ${to - from} points of equity (${from}% → ${to}% of benefit to low-income blocks) cost ${loss} of cooling.`
 }
 
 // ---------- Baselines table ----------

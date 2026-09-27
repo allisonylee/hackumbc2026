@@ -12,11 +12,9 @@ const ROBUST_DEBOUNCE_MS = 700
 
 // Survive tab switches: don't recompute (and re-sprout) when returning with unchanged params.
 let lastAllocParams: Params | null = null
-let lastParetoKey = ''
 let lastBaselinesKey = ''
 let lastRobustKey = ''
 
-const paretoKey = (p: Params) => JSON.stringify({ ...p, equityQuota: 0 })
 const baselinesKey = (p: Params) => JSON.stringify({ b: p.budget, x: p.excludeNbs, u: p.avoidUtilities, y: p.years })
 
 export function usePlanRunner() {
@@ -25,7 +23,6 @@ export function usePlanRunner() {
   const robust = usePlanUi((s) => s.robust)
 
   const allocLatest = useMemo(() => latestOnly(optimizer.allocate), [])
-  const paretoLatest = useMemo(() => latestOnly(optimizer.pareto), [])
   const baselinesLatest = useMemo(() => latestOnly(optimizer.baselines), [])
   const robustLatest = useMemo(
     () =>
@@ -77,21 +74,14 @@ export function usePlanRunner() {
     [],
   )
 
-  // Pareto + baselines: debounced; skipped when only params they ignore changed.
+  // Baselines: debounced; skipped when only params they ignore changed.
   useEffect(() => {
     if (!data) return
-    const pk = paretoKey(params)
     const bk = baselinesKey(params)
-    const needP = pk !== lastParetoKey || !useStore.getState().plan.pareto
-    const needB = bk !== lastBaselinesKey || !useStore.getState().plan.baselines
-    if (!needP && !needB) return
+    if (bk === lastBaselinesKey && useStore.getState().plan.baselines) return
     const t = window.setTimeout(async () => {
       try {
-        const [pr, br] = await Promise.all([needP ? paretoLatest(params) : null, needB ? baselinesLatest(params) : null])
-        if (pr) {
-          lastParetoKey = pk
-          useStore.getState().setPlan({ pareto: pr.result })
-        }
+        const br = await baselinesLatest(params)
         if (br) {
           lastBaselinesKey = bk
           useStore.getState().setPlan({ baselines: br.result })
@@ -101,7 +91,7 @@ export function usePlanRunner() {
       }
     }, SECONDARY_DEBOUNCE_MS)
     return () => window.clearTimeout(t)
-  }, [params, data, paretoLatest, baselinesLatest])
+  }, [params, data, baselinesLatest])
 
   // Robust picks (§8.5): 20 perturbed-weight allocations, only while the toggle is on.
   useEffect(() => {

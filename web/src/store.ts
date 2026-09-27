@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppData, Baselines, Params, ParetoPoint, Result } from '@/lib/types'
+import type { AppData, Baselines, Params, Result } from '@/lib/types'
 import type { CameraView } from '@/lib/views'
 
 export type Tab = 'current' | 'plan' | 'learn'
@@ -59,7 +59,6 @@ type State = {
     params: Params
     budgetMode: 'usd' | 'trees'
     result: Result | null
-    pareto: ParetoPoint[] | null
     baselines: Baselines | null
     computing: boolean
     focusNb: string | null
@@ -122,7 +121,6 @@ export const useStore = create<State>()((set) => ({
     params: DEFAULT_PARAMS,
     budgetMode: 'usd',
     result: null,
-    pareto: null,
     baselines: null,
     computing: false,
     focusNb: null,

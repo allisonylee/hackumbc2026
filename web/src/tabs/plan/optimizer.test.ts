@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Hex, Params, Site } from '@/lib/types'
-import { allocate, baselines, lowIncomeThreshold, pareto, prepare, type OptInput } from './optimizer'
+import { allocate, baselines, lowIncomeThreshold, prepare, type OptInput } from './optimizer'
 
 const hex = (h3: string, over: Partial<Hex>): Hex => ({
   h3, nb: 'A', canopy: 0.2, imperv: 0.5, bldg: 0.2, road: 0.1, heat: 92, heatAnom: 0, heatPred: 92,
@@ -168,15 +168,7 @@ describe('large hexes', () => {
   })
 })
 
-describe('pareto and baselines', () => {
-  it('pareto sweeps quota 0..1 in 21 steps', () => {
-    const pts = pareto(P, { ...base, budget: 6000 })
-    expect(pts).toHaveLength(21)
-    expect(pts[0].quota).toBe(0)
-    expect(pts[20].quota).toBe(1)
-    expect(pts[20].shareLowIncome).toBeGreaterThanOrEqual(pts[0].shareLowIncome)
-  })
-
+describe('baselines', () => {
   it('baselines respect the budget and include TES', () => {
     const b = baselines(P, { ...base, budget: 4000 })
     expect(b.random.impact.spent).toBeLessThanOrEqual(4000)
