@@ -29,6 +29,8 @@ export const RAMPS = {
   asthma: ramp(['#f3e8ff', '#d8b4fe', '#a855f7', '#7e22ce', '#3b0764']),
   residual: ramp(['#2563eb', '#93c5fd', '#f5f5f5', '#fca5a5', '#dc2626']),
   cooling: ramp(['#134e4a', '#0f766e', '#14b8a6', '#5eead4', '#ccfbf1']),
+  // canopy added by a plan: light lime (a little) → deep green (a lot), readable on the dark basemap
+  gain: ramp(['#ecfccb', '#bef264', '#4ade80', '#16a34a', '#166534']),
 }
 
 /** Joshua Stevens 3×3 bivariate palette. Index = rowCanopyTercile(inverted) * 3 + colTercile. */

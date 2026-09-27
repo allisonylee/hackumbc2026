@@ -12,7 +12,7 @@ import { fmtF, fmtInt, fmtUsd } from '@/lib/format'
 import type { Hex, NbFeature, Site } from '@/lib/types'
 import { before, EMPTY_TAB_LAYERS, type TabLayers, type Tooltip } from '@/map/types'
 import { MATURITY } from './optimizer'
-import { CROWN_M2_20Y, SPROUT_MS, hexCoolingF, plannedCanopy, sproutScale } from './logic'
+import { SPROUT_MS, canopyGains, hexCoolingF, sproutScale } from './logic'
 import { usePlanUi } from './planUi'
 
 const FAINT_ZOOM = 14.5
@@ -41,10 +41,21 @@ function useClock(enabled: boolean, until: number) {
 
 const tooltipStyle = { background: 'rgba(11,15,14,0.9)', color: 'white', fontSize: '12px', borderRadius: '8px', padding: '6px 8px', border: '1px solid rgba(255,255,255,0.1)' }
 
-export function usePlanLayers(active: boolean): TabLayers {
+/** Canopy added per hex by the current plan at the chosen maturity horizon (shared by the map and its legend). */
+export function usePlanCanopyGains() {
   const data = useStore((s) => s.data)
   const result = useStore((s) => s.plan.result)
   const years = useStore((s) => s.plan.params.years)
+  return useMemo(() => {
+    if (!data || !result) return null
+    const sites = result.siteIds.map((id) => data.siteById.get(id)).filter((x): x is Site => !!x)
+    return canopyGains(sites, (x) => data.speciesByName.get(x.species)?.size ?? 'medium', MATURITY[years], (h3) => cellArea(h3, 'm2'))
+  }, [data, result, years])
+}
+
+export function usePlanLayers(active: boolean): TabLayers {
+  const data = useStore((s) => s.data)
+  const result = useStore((s) => s.plan.result)
   const excludeNbs = useStore((s) => s.plan.params.excludeNbs)
   const focusNb = useStore((s) => s.plan.focusNb)
   const selectedSite = useStore((s) => s.selectedSite)
@@ -56,6 +67,7 @@ export function usePlanLayers(active: boolean): TabLayers {
   const robust = usePlanUi((s) => s.robust)
   const robustSet = usePlanUi((s) => s.robustIds)
   const reduce = useReducedMotion() ?? false
+  const gained = usePlanCanopyGains()
 
   const animating = active && !reduce && !!result
   const now = useClock(animating, lastBirth + SPROUT_MS + 32)
@@ -90,24 +102,17 @@ export function usePlanLayers(active: boolean): TabLayers {
     if (!data) return null
     const [lo, hi] = heatRange
     const perHex = result?.perHex ?? {}
-    const m = MATURITY[years]
     const colors = new Map<string, RGBA>()
     let maxCool = 0
     if (view === 'cooling' && result) for (const h3 in perHex) maxCool = Math.max(maxCool, hexCoolingF(data.hexById.get(h3)!, perHex[h3]))
-    // crown area per planned hex, for the after-planting canopy view
-    const crowns = new Map<string, number>()
-    if (view === 'canopyAfter' && planned) {
-      for (const s of planned.sites) {
-        const size = data.speciesByName.get(s.species)?.size ?? 'medium'
-        crowns.set(s.h3, (crowns.get(s.h3) ?? 0) + CROWN_M2_20Y[size])
-      }
-    }
     for (const h of data.hexes) {
       let c: RGBA
-      if (view === 'canopyNow' || view === 'canopyAfter') {
-        const crown = crowns.get(h.h3)
-        const canopy = crown ? plannedCanopy(h.canopy, crown, m, cellArea(h.h3, 'm2')) : h.canopy
-        c = [...RAMPS.canopy(canopy / CANOPY_MAX), 170] as RGBA
+      if (view === 'canopyNow') {
+        c = [...RAMPS.canopy(h.canopy / CANOPY_MAX), 170] as RGBA
+      } else if (view === 'canopyAfter') {
+        // Only planted blocks are colored, by canopy gained; the rest fade to a faint canopy backdrop.
+        const g = gained?.gains.get(h.h3)
+        c = g ? ([...RAMPS.gain(Math.min(1, g / gained!.hi)), 235] as RGBA) : ([...RAMPS.canopy(h.canopy / CANOPY_MAX), 35] as RGBA)
       } else if (result && perHex[h.h3]) {
         const f = hexCoolingF(h, perHex[h.h3])
         c = [...RAMPS.cooling(0.15 + 0.85 * Math.sqrt(maxCool > 0 ? f / maxCool : 0)), 215] as RGBA
@@ -118,7 +123,7 @@ export function usePlanLayers(active: boolean): TabLayers {
       colors.set(h.h3, c)
     }
     return colors
-  }, [data, heatRange, result, planned, view, years])
+  }, [data, heatRange, result, view, gained])
 
   const excludedFeatures = useMemo(() => {
     if (!data || !excludeNbs.length) return []

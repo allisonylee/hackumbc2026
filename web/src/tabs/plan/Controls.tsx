@@ -301,7 +301,7 @@ function ViewControl() {
       >
         <ToggleGroupItem value="cooling" className="h-7 text-[11px]">Cooling</ToggleGroupItem>
         <ToggleGroupItem value="canopyNow" className="h-7 text-[11px]">Canopy now</ToggleGroupItem>
-        <ToggleGroupItem value="canopyAfter" className="h-7 text-[11px]">+ plan</ToggleGroupItem>
+        <ToggleGroupItem value="canopyAfter" className="h-7 text-[11px]">Canopy gained</ToggleGroupItem>
       </ToggleGroup>
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor="robust" className="text-xs font-normal text-white/80">
