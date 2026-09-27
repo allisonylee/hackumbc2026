@@ -23,6 +23,15 @@ APP_USER=canopy
 
 if [[ $EUID -ne 0 ]]; then echo "run as root" >&2; exit 1; fi
 
+# qwen3.5:2b needs ~2 GB just to load (plus embeddinggemma, the context and the app). On a 2 GB droplet
+# the kernel's OOM killer stops Ollama mid-load and the chat reports "offline".
+MEM_MB="$(awk '/MemTotal/ {printf "%d", $2 / 1024}' /proc/meminfo)"
+if (( MEM_MB < 3500 )) && [[ "${FORCE_SMALL:-}" != 1 ]]; then
+  echo "This droplet has ${MEM_MB} MB of RAM; the chat needs at least 4 GB (8 GB recommended)." >&2
+  echo "Resize it (Power off → Resize → CPU and RAM only), then re-run. FORCE_SMALL=1 skips this check." >&2
+  exit 1
+fi
+
 # The droplet's public IPv4, from DigitalOcean's metadata service (falls back to an outside lookup).
 IP="$(curl -fsS --max-time 3 http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address \
       || curl -fsS --max-time 5 https://api.ipify.org)"
