@@ -1,0 +1,7 @@
+# setup_droplet.sh replaces {$API_HOST}. Caddy gets and renews the HTTPS certificate automatically.
+{$API_HOST} {
+	reverse_proxy 127.0.0.1:8000 {
+		# Send each streamed NDJSON line immediately instead of buffering the answer.
+		flush_interval -1
+	}
+}

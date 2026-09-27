@@ -1,0 +1,22 @@
+{
+ "measuredAt": "2026-09-26T19:25:49-0400",
+ "model": "qwen3.5:2b",
+ "machine": "arm64",
+ "method": "zeus-apple-silicon, minus idle baseline",
+ "fresh": {
+  "answers": 12,
+  "medianJ": 38.5,
+  "medianWh": 0.0107,
+  "minJ": 26.3,
+  "maxJ": 80.3,
+  "jPerToken": 0.508
+ },
+ "all": {
+  "answers": 24,
+  "medianJ": 36.5,
+  "medianWh": 0.0101,
+  "minJ": 25.1,
+  "maxJ": 85.7,
+  "jPerToken": 0.491
+ }
+}

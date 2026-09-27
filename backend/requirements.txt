@@ -1,6 +1,12 @@
-fastapi
-uvicorn[standard]
-httpx
-numpy
-pydantic
-pytest
+# Lower bounds are the versions tested on 2026-09-26.
+fastapi>=0.141,<1
+uvicorn[standard]>=0.54,<1
+httpx>=0.28,<1
+numpy>=2.3,<3
+pydantic>=2.13,<3
+rapidfuzz>=3.14,<4
+slowapi>=0.1.10,<0.2
+pyyaml>=6.0,<7
+pytest>=9.1
+# Energy measurement on Apple Silicon only; elsewhere answers are estimated.
+zeus-apple-silicon>=1.1; sys_platform == "darwin"

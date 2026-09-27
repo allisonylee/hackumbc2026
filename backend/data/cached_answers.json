@@ -1,0 +1,119 @@
+[
+ {
+  "question": "Why do trees cool streets?",
+  "sources": [
+   {
+    "n": 1,
+    "title": "How trees cool a city: shade and evapotranspiration",
+    "url": "https://www.epa.gov/heatislands/benefits-trees-and-vegetation"
+   },
+   {
+    "n": 2,
+    "title": "How much can trees cool a city? Global review of 182 studies (Li et al. 2024)",
+    "url": "https://www.nature.com/articles/s43247-024-01908-4"
+   },
+   {
+    "n": 3,
+    "title": "Why 40% tree canopy matters: block-scale cooling (Ziter et al. 2019)",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6462107/"
+   },
+   {
+    "n": 4,
+    "title": "What is an urban heat island? Why pavement and buildings make cities hotter",
+    "url": "https://www.epa.gov/heatislands/learn-about-heat-islands"
+   }
+  ],
+  "text": "Trees cool streets in two ways. First, their crowns block sunlight before it reaches the ground, so shaded pavement and walls stay cooler [1]. Second, trees pull water up through their roots and release it as vapor from their leaves; turning water into vapor uses heat, which cools the surrounding air [1]. A global review of 182 studies found that urban trees can lower street-level temperatures by as much as 12°C, depending on the climate, the shape of the city and the kinds of trees [2]. Block-scale cooling is strongest once canopy reaches about 40% [3].",
+  "tokens": 62,
+  "generationWh": 0.0383,
+  "measured": true,
+  "generatedAt": "2026-09-26T20:37:12-0400",
+  "reviewed": true,
+  "editedBy": "Claude: fixed 'leaves and roots' and the evapotranspiration citation; added claims from [2] and [3]"
+ },
+ {
+  "question": "Why is my neighborhood hotter?",
+  "sources": [
+   {
+    "n": 1,
+    "title": "Are redlined neighborhoods hotter? (Hoffman, Shandas & Pendleton 2020)",
+    "url": "https://mdpi-res.com/d_attachment/climate/climate-08-00012/article_deploy/climate-08-00012.pdf"
+   },
+   {
+    "n": 2,
+    "title": "Do lower-income neighborhoods have fewer trees and more heat? (McDonald et al. 2021)",
+    "url": "https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0249715"
+   },
+   {
+    "n": 3,
+    "title": "What is an urban heat island? Why pavement and buildings make cities hotter",
+    "url": "https://www.epa.gov/heatislands/learn-about-heat-islands"
+   },
+   {
+    "n": 4,
+    "title": "Code Red: Baltimore's hottest neighborhoods, like McElderry Park, are poorer and have fewer trees",
+    "url": "https://cnsmaryland.org/interactives/summer-2019/code-red/neighborhood-heat-inequality.html"
+   }
+  ],
+  "text": "Your neighborhood might be hotter because it has fewer trees and more pavement, which traps heat. Studies show that low-income areas often have significantly less tree cover and are 1.5°C (2.7°F) warmer than higher-income ones [2]. Additionally, dense rows of buildings can create \"urban canyons\" that block breezes and trap hot air inside [3]. This creates a heat island effect where the ground and roofs absorb more sun energy than natural areas do [3].",
+  "tokens": 100,
+  "generationWh": 0.0372,
+  "measured": true,
+  "generatedAt": "2026-09-26T20:37:23-0400",
+  "reviewed": true
+ },
+ {
+  "question": "Which tree fits a narrow sidewalk?",
+  "sources": [
+   {
+    "n": 1,
+    "title": "Small street trees for Baltimore (under 35 ft, OK under power lines): eastern redbud, serviceberry, and why hedge maple is no longer allowed",
+    "url": "https://s3.amazonaws.com/baltimorecity.gov.if-us-east-1/s3fs-public/2026-07/baltimore_city_approved_tree_species_list_2025_08_29.pdf"
+   },
+   {
+    "n": 2,
+    "title": "How big does a street tree pit need to be in Baltimore? Minimum tree pit size and soil volume",
+    "url": "https://www.baltimoresustainability.org/wp-content/uploads/2024/05/Baltimore-City-Landscape-Manual.pdf"
+   }
+  ],
+  "text": "For a narrow sidewalk, look at small trees. Baltimore's approved list puts eastern redbud and Canadian serviceberry in its small group: trees under 35 feet at maturity that suit narrow streets, small tree pits and spots under overhead wires. Both are native [1]. Avoid hedge maple: the city now lists it as invasive and not to be planted [1]. Every street tree pit must be at least 48 square feet, with at least 144 cubic feet of soil [2]. Before planting in the public right-of-way, you need permission from the city's Forestry Division [1].",
+  "tokens": 80,
+  "generationWh": 0.0239,
+  "measured": true,
+  "generatedAt": "2026-09-26T20:37:29-0400",
+  "reviewed": true,
+  "editedBy": "Claude: rewrote; the generated answer recommended hedge maple (from species.json), which the city bans"
+ },
+ {
+  "question": "How can I help?",
+  "sources": [
+   {
+    "n": 1,
+    "title": "How do I request a street tree for my street in Baltimore?",
+    "url": "https://www.treebaltimore.org/street-tree-request-form"
+   },
+   {
+    "n": 2,
+    "title": "Volunteer with Baltimore Tree Trust (tree planting nonprofit)",
+    "url": "https://www.baltimoretreetrust.org/ways-to-take-action/volunteer/"
+   },
+   {
+    "n": 3,
+    "title": "TreeKeepers: free tree planting and pruning training in Baltimore",
+    "url": "https://www.treebaltimore.org/treekeepers"
+   },
+   {
+    "n": 4,
+    "title": "How to donate to Baltimore tree planting groups",
+    "url": "https://www.treebaltimore.org/donate"
+   }
+  ],
+  "text": "There are several ways to help. Ask the city to plant a street tree in front of your home with TreeBaltimore's Street Tree Request form [1]. Volunteer at Baltimore Tree Trust's spring and fall plantings; no experience is needed [2]. Take TreeBaltimore's free TreeKeepers training to learn to plant and care for trees [3]. Or donate to local tree groups such as TreeBaltimore, Baltimore Tree Trust, Blue Water Baltimore or Parks & People [4].",
+  "tokens": 58,
+  "generationWh": 0.0212,
+  "measured": true,
+  "generatedAt": "2026-09-26T20:37:34-0400",
+  "reviewed": true,
+  "editedBy": "Claude: rewrote with sources for requesting, volunteering, training and donating"
+ }
+]
