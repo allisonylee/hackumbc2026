@@ -218,24 +218,17 @@ function RankList({ items, value }: { items: NbProps[]; value: (p: NbProps) => s
   )
 }
 
-function ModelSummary({ stats }: { stats: Stats }) {
+function ModelCardButton() {
   const setDialog = useStore((s) => s.setDialog)
-  const m = stats.model
   return (
-    <div>
-      <div className="grid grid-cols-2 gap-2">
-        <StatTile label="Spatial-CV R²" value={m.r2Spatial} format={(n) => n.toFixed(2)} hint={`linear baseline ${m.baselines.linearR2Spatial.toFixed(2)}`} accent="#4ade80" />
-        <StatTile label="Typical error" value={m.maeSpatial} format={(n) => fmtF(n)} hint="mean absolute, held-out areas" />
-      </div>
-      <button
-        type="button"
-        onClick={() => setDialog('modelCard', true)}
-        className="mt-2 flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-xs text-white/80 hover:bg-white/10"
-      >
-        <BrainCircuit className="size-4 text-emerald-300" /> How the heat model works
-        <ChevronRight className="ml-auto size-4 text-white/40" />
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => setDialog('modelCard', true)}
+      className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-xs text-white/80 hover:bg-white/10"
+    >
+      <BrainCircuit className="size-4 text-emerald-300" /> How the heat model works
+      <ChevronRight className="ml-auto size-4 text-white/40" />
+    </button>
   )
 }
 
@@ -324,7 +317,7 @@ export function StatsPanel() {
                 </Tabs>
               </Section>
               <Section title="The heat model">
-                <ModelSummary stats={stats} />
+                <ModelCardButton />
               </Section>
             </div>
           </motion.aside>

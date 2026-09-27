@@ -33,13 +33,27 @@ function PdChart({ stats }: { stats: Stats }) {
   return <div ref={ref} className="overflow-x-auto" />
 }
 
+/** "Afternoon air temperature (°F), NOAA Heat Watch" → measure "afternoon air temperature (°F)", source "NOAA Heat Watch". */
+function splitTarget(target: string) {
+  const i = target.lastIndexOf(', ')
+  const measure = i < 0 ? target : target.slice(0, i)
+  return { measure: measure.charAt(0).toLowerCase() + measure.slice(1), source: i < 0 ? null : target.slice(i + 2) }
+}
+
+const fmtDate = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00`)
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
 export function ModelCardContent({ stats }: { stats: Stats }) {
   const m = stats.model
+  const target = splitTarget(m.target)
   const maxImp = Math.max(...m.importance.map(([, v]) => v), 1e-9)
   return (
     <div className="space-y-5 text-sm text-white/80">
       <p>
-        A gradient-boosted tree model (LightGBM) learns how the {m.target.toLowerCase()} on {m.date} depends on each
+        A gradient-boosted tree model (LightGBM) learns how the {target.measure}
+        {target.source ? ` measured by ${target.source}` : ''} on {fmtDate(m.date)} depends on each
         block’s land cover and surroundings, from {m.nTrain.toLocaleString('en-US')} measured hexes. It uses only
         physical features, so it can answer “what if this block had more trees?”.
       </p>
