@@ -252,7 +252,7 @@ function ImpactCard({ title, color, impact, reveal = true, dim }: {
           <div key={r.label}>
             <Label className="text-[10px]">{r.label}</Label>
             <div className="font-display text-xl font-semibold tabular-nums leading-tight">
-              {impact ? <AnimatedNumber value={r.v} format={r.f} /> : <span className="text-white/30">—</span>}
+              {impact ? <AnimatedNumber value={r.v} format={r.f} fast /> : <span className="text-white/30">—</span>}
             </div>
           </div>
         ))}

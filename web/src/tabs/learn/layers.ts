@@ -283,6 +283,8 @@ export function useLearnLayers(active: boolean): TabLayers {
           updateTriggers: { getRadius: [on, opt], getFillColor: [opt] },
           transitions: { getRadius: t(700), getFillColor: t(700) },
           pickable: false,
+          // Always on top: the dots sit in the flat hexes' plane and would otherwise flicker (z-fight).
+          parameters: { depthCompare: 'always' },
           ...before(beforeId),
         }),
       )
