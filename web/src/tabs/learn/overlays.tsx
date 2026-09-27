@@ -233,7 +233,7 @@ function ImpactCard({ title, color, impact, reveal = true, dim }: {
 }) {
   const v = (x: number | undefined) => (reveal ? (x ?? 0) : 0)
   const rows = [
-    { label: 'Cooling (°F × residents)', v: v(impact?.coolingPersonF), f: fmtCompact },
+    { label: 'Cooling (people × °F)', v: v(impact?.coolingPersonF), f: fmtCompact },
     { label: 'Residents reached', v: v(impact?.residents), f: fmtCompact },
     { label: 'To low-income blocks', v: v(impact?.shareLowIncome), f: (n: number) => fmtPct(n) },
   ]

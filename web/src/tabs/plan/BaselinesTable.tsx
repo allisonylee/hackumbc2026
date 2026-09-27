@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { BASELINE_COLS, bestPerColumn, type BaselineCol, type BaselineRow } from './logic'
 
 const COLS: Record<BaselineCol, { label: string; fmt: (n: number) => string; title: string }> = {
-  coolingPersonF: { label: 'Cooling', fmt: fmtCompact, title: 'Person-°F of cooling (°F × residents)' },
+  coolingPersonF: { label: 'Cooling', fmt: fmtCompact, title: 'Cooling, in people × °F' },
   avgFTargeted: { label: 'Avg °F', fmt: (n) => fmtF(n, 2), title: 'Average cooling in targeted blocks' },
   shareLowIncome: { label: 'Low-inc.', fmt: (n) => fmtPct(n), title: 'Share of cooling in low-income blocks' },
   shareHolcCD: { label: 'HOLC C/D', fmt: (n) => fmtPct(n), title: 'Share of trees in redlined (C/D) areas' },

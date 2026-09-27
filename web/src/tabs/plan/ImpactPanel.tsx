@@ -27,7 +27,7 @@ export function ImpactTiles() {
       <StatTile fast label="CO₂ stored" value={i.co2LbYr} format={(n) => `${fmtCompact(n)} lb`} hint={`per year ${horizon}`} />
       <StatTile fast label="Stormwater" value={i.stormGalYr} format={(n) => `${fmtCompact(n)} gal`} hint={`per year ${horizon}`} />
       <StatTile fast label="Benefits" value={i.benefitUsdYr} format={(n) => fmtUsd(n)} hint={`per year ${horizon}`} />
-      <StatTile fast label="Cooling delivered" value={i.coolingPersonF} format={fmtCompact} hint="person-°F" />
+      <StatTile fast label="Cooling delivered" value={i.coolingPersonF} format={fmtCompact} hint="people × °F" />
     </div>
   )
 }

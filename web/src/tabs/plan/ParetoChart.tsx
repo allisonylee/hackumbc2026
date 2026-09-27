@@ -46,7 +46,7 @@ export function ParetoChart() {
       marginBottom: 32,
       style: { background: 'transparent', color: 'rgba(255,255,255,0.6)', fontSize: '10px', fontFamily: 'inherit' },
       x: { label: 'Benefit to low-income blocks (%) →', labelAnchor: 'right', nice: true, grid: true },
-      y: { label: '↑ Cooling (person-°F)', labelAnchor: 'top', nice: true, grid: true, tickFormat: (d: number) => fmtCompact(d), zero: false },
+      y: { label: '↑ Cooling (people × °F)', labelAnchor: 'top', nice: true, grid: true, tickFormat: (d: number) => fmtCompact(d), zero: false },
       marks: [
         Plot.line(points.curve, { x: 'x', y: 'y', stroke: 'rgba(255,255,255,0.55)', strokeWidth: 2, curve: 'monotone-x' }),
         Plot.dot(points.curve, { x: 'x', y: 'y', r: 2, fill: 'rgba(255,255,255,0.55)' }),
@@ -63,7 +63,7 @@ export function ParetoChart() {
           Plot.pointer({
             x: 'x',
             y: 'y',
-            title: (d: Pt) => `${d.label}\nCooling ${fmtCompact(d.y)} person-°F\nLow-income share ${d.x.toFixed(0)}%`,
+            title: (d: Pt) => `${d.label}\nCooling ${fmtCompact(d.y)} people × °F\nLow-income share ${d.x.toFixed(0)}%`,
             fill: '#121816',
             stroke: 'rgba(255,255,255,0.15)',
           }),
