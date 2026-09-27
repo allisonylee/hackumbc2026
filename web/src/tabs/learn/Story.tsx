@@ -11,13 +11,13 @@ import { avgSiteCost, optimizer } from '@/tabs/plan/optimizerClient'
 import { hottestCoolest } from './helpers'
 import { useLearn } from './learnStore'
 import { HELP_ANCHOR_ID, STEP_ATTR, scrollToHelp, scrollToStep } from './nav'
-import { BUILDING_STEPS, HELP_INDEX, PACE_NEEDED_PER_YEAR, STEPS, VISION_YEARS, type StoryCtx } from './steps'
+import { BUILDING_STEPS, HELP_INDEX, STEPS, type StoryCtx } from './steps'
 import TakeAction from './TakeAction'
 import { resolveCamera, useViewport } from './viewport'
 
 const TURN_TREES = 1000
 
-/** Runs the optimizer for beats 7 and 8 once per data load. */
+/** Runs the optimizer for beat 7 once per data load. */
 function useStoryRuns() {
   const data = useStore((s) => s.data)
   useEffect(() => {
@@ -26,7 +26,6 @@ function useStoryRuns() {
     const set = useLearn.getState().set
     const avg = avgSiteCost()
     const turnParams: Params = { ...DEFAULT_PARAMS, budget: TURN_TREES * avg }
-    const visionParams: Params = { ...DEFAULT_PARAMS, budget: PACE_NEEDED_PER_YEAR * VISION_YEARS * avg, years: 10 }
     ;(async () => {
       try {
         const b = await optimizer.baselines(turnParams)
@@ -52,9 +51,6 @@ function useStoryRuns() {
         }
         if (cancelled) return
         set({ turn: { params: bestParams, random, optimized: best.result, ms: best.ms } })
-        const v = await optimizer.allocate(visionParams)
-        if (cancelled) return
-        set({ vision: { params: visionParams, result: v.result, trees: PACE_NEEDED_PER_YEAR * VISION_YEARS } })
       } catch (e) {
         if (!cancelled) set({ error: (e as Error).message })
       }
@@ -85,7 +81,6 @@ export default function Story() {
   const setStory = useStore((s) => s.setStory)
   const mapReady = useStore((s) => !!s.map.labelLayerId)
   const turn = useLearn((s) => s.turn)
-  const vision = useLearn((s) => s.vision)
   const reduce = useReducedMotion()
   const vp = useViewport()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -93,7 +88,7 @@ export default function Story() {
   useStoryRuns()
 
   const hc = useMemo(() => (data ? hottestCoolest(data.nbs.features.map((f) => f.properties)) : null), [data])
-  const ctx: StoryCtx | null = data ? { data, hc, turn, vision } : null
+  const ctx: StoryCtx | null = data ? { data, hc, turn } : null
 
   // Scrollama: one step per beat, plus the How to help section.
   useEffect(() => {
@@ -117,7 +112,7 @@ export default function Story() {
   useEffect(() => {
     if (!data || !mapReady || step >= HELP_INDEX) return
     // Camera specs read only data and hc; optimizer results must not re-trigger a flight mid-beat.
-    const spec = STEPS[step].camera({ data, hc, turn: null, vision: null })
+    const spec = STEPS[step].camera({ data, hc, turn: null })
     if (!spec) return
     const view = resolveCamera(spec, { w, h, desktop, column })
     useStore.getState().flyTo({ ...view, duration: reduce ? 0 : 2200 })

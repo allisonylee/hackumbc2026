@@ -15,7 +15,7 @@ import { useLearn } from './learnStore'
 import { STEPS, type Step, type StepId } from './steps'
 
 type Beat = StepId | 'help'
-type HexMode = { color: 'heat' | 'canopy' | 'vision'; alpha: number; height: 'heat' | 'flat' | 'vision' }
+type HexMode = { color: 'heat' | 'canopy'; alpha: number; height: 'heat' | 'flat' }
 
 const HEX_MODES: Record<Beat, HexMode> = {
   hook: { color: 'heat', alpha: 225, height: 'heat' },
@@ -25,8 +25,8 @@ const HEX_MODES: Record<Beat, HexMode> = {
   cost: { color: 'heat', alpha: 35, height: 'flat' },
   gap: { color: 'canopy', alpha: 200, height: 'flat' },
   turn: { color: 'canopy', alpha: 55, height: 'flat' },
-  vision: { color: 'vision', alpha: 225, height: 'vision' },
-  cta: { color: 'vision', alpha: 170, height: 'vision' },
+  // Bookend: the 3D heat city from beat 1 behind the call to action.
+  cta: { color: 'heat', alpha: 170, height: 'heat' },
   help: { color: 'canopy', alpha: 60, height: 'flat' },
 }
 
@@ -35,7 +35,6 @@ const MAX_HEIGHT_M = 650
 const LABEL_DX = 0.045
 const LABEL_DY = 0.012
 const rgba = (c: RGB | readonly number[], a: number): RGBA => [c[0], c[1], c[2], a]
-const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 const CLEAR: RGBA = [0, 0, 0, 0]
 const HOLC_D_LINE: RGBA = [...HOLC_COLORS.D, 255] as RGBA
 /** Beats that show the full A–D HOLC shading (with the hexes hidden). */
@@ -49,8 +48,6 @@ export function useLearnLayers(active: boolean): TabLayers {
   const step = useStore((s) => s.story.step)
   const turn = useLearn((s) => s.turn)
   const phase = useLearn((s) => s.turnPhase)
-  const vision = useLearn((s) => s.vision)
-  const visionCount = useLearn((s) => s.visionCount)
   const help = useLearn((s) => s.help)
   const reduce = useReducedMotion()
 
@@ -107,27 +104,6 @@ export function useLearnLayers(active: boolean): TabLayers {
     return out
   }, [data, turn])
 
-  // Beat 8: sites sprouted so far, and °F cooled per hex from them.
-  const visionSites = useMemo<Site[]>(() => {
-    if (!data || !vision) return []
-    return vision.result.siteIds.map((id) => data.siteById.get(id)).filter((s): s is Site => !!s)
-  }, [data, vision])
-  const cooled = useMemo(() => {
-    const m = new Map<string, number>()
-    if (!data) return m
-    const counts = new Map<string, number>()
-    const n = Math.min(visionCount, visionSites.length)
-    for (let i = 0; i < n; i++) counts.set(visionSites[i].h3, (counts.get(visionSites[i].h3) ?? 0) + 1)
-    for (const [h3, k] of counts) {
-      const h = data.hexById.get(h3)
-      if (!h) continue
-      let f = 0
-      for (let j = 0; j < k && j < h.gains.length; j++) f += h.gains[j]
-      m.set(h3, f)
-    }
-    return m
-  }, [data, visionSites, visionCount])
-
   const helpSites = useMemo<Site[]>(
     () => (data ? help.siteIds.map((id) => data.siteById.get(id)).filter((s): s is Site => !!s) : []),
     [data, help.siteIds],
@@ -137,7 +113,6 @@ export function useLearnLayers(active: boolean): TabLayers {
     if (!active || !data || !base) return EMPTY_TAB_LAYERS
     const t = (ms: number) => (reduce ? 0 : ms)
     const mode = HEX_MODES[beat]
-    const maxCool = Math.max(1e-6, ...cooled.values())
     const heatT = (anom: number) => norm(anom, base.lo, base.hi)
 
     const hexLayer = new H3HexagonLayer<Hex>({
@@ -149,17 +124,13 @@ export function useLearnLayers(active: boolean): TabLayers {
       material: false,
       getElevation: (d) => {
         if (mode.height === 'flat') return 0
-        const c = mode.height === 'vision' ? (cooled.get(d.h3) ?? 0) : 0
-        return Math.max(0, Math.min(1, heatT(d.heatAnom - c))) * MAX_HEIGHT_M + 4
+        return Math.max(0, Math.min(1, heatT(d.heatAnom))) * MAX_HEIGHT_M + 4
       },
       getFillColor: (d) => {
         if (mode.color === 'canopy') return rgba(RAMPS.canopy(d.canopy / 0.6), mode.alpha)
-        if (mode.color === 'heat') return rgba(RAMPS.heat(heatT(d.heatAnom)), mode.alpha)
-        const c = cooled.get(d.h3)
-        if (c === undefined) return rgba(RAMPS.heat(heatT(d.heatAnom)), Math.round(mode.alpha * 0.55))
-        return rgba(mix(RAMPS.heat(heatT(d.heatAnom - c)), BRAND.canopy, 0.45 + 0.55 * (c / maxCool)), mode.alpha)
+        return rgba(RAMPS.heat(heatT(d.heatAnom)), mode.alpha)
       },
-      updateTriggers: { getElevation: [beat, cooled], getFillColor: [beat, cooled] },
+      updateTriggers: { getElevation: [beat], getFillColor: [beat] },
       transitions: {
         getElevation: { duration: t(1100), enter: () => [0] },
         getFillColor: t(900),
@@ -290,22 +261,6 @@ export function useLearnLayers(active: boolean): TabLayers {
       )
     }
 
-    if (visionSites.length && (beat === 'vision' || beat === 'cta')) {
-      layers.push(
-        new ScatterplotLayer<Site>({
-          id: 'learn-vision-sites',
-          data: visionSites.slice(0, visionCount),
-          getPosition: (d) => [d.lng, d.lat, 0],
-          radiusUnits: 'pixels',
-          getRadius: 2.4,
-          getFillColor: rgba(BRAND.canopy, 230),
-          transitions: { getRadius: { duration: t(500), enter: () => [0] } },
-          pickable: false,
-          ...before(beforeId),
-        }),
-      )
-    }
-
     if (beat === 'help') {
       if (helpSites.length) {
         layers.push(
@@ -374,5 +329,5 @@ export function useLearnLayers(active: boolean): TabLayers {
     }
 
     return { layers, getTooltip }
-  }, [active, data, base, beat, cooled, turnSites, phase, visionSites, visionCount, helpSites, help.origin, help.nb, beforeId, reduce])
+  }, [active, data, base, beat, turnSites, phase, helpSites, help.origin, help.nb, beforeId, reduce])
 }

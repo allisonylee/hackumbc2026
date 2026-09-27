@@ -1,24 +1,23 @@
-// The nine story beats (implementation_plan.md §9.1). Text only; overlays live in overlays.tsx and map
+// The eight story beats (implementation_plan.md §9.1). Text only; overlays live in overlays.tsx and map
 // layers in layers.ts, both keyed by step id. Every number is read from the loaded data or optimizer runs.
 import type { ComponentType } from 'react'
 import type { AppData } from '@/lib/types'
 import type { MultiPolygon, Polygon } from 'geojson'
 import { fmtInt, fmtPct, fmtSignedF } from '@/lib/format'
 import { boundsOf, hottestCoolest, type LngLat } from './helpers'
-import type { TurnRuns, VisionRun } from './learnStore'
+import type { TurnRuns } from './learnStore'
 import type { CameraSpec } from './viewport'
 import {
-  CanopyAvsD, CtaButtons, EchoChart, GapBar, HolcKey, HookCounter, HumanCostTiles, TurnCards, VisionCounter,
+  CanopyAvsD, CtaButtons, EchoChart, GapBar, HolcKey, HookCounter, HumanCostTiles, TurnCards,
 } from './overlays'
 
-export type StepId = 'hook' | 'history' | 'echo' | 'canopy' | 'cost' | 'gap' | 'turn' | 'vision' | 'cta'
+export type StepId = 'hook' | 'history' | 'echo' | 'canopy' | 'cost' | 'gap' | 'turn' | 'cta'
 
 
 export type StoryCtx = {
   data: AppData
   hc: ReturnType<typeof hottestCoolest>
   turn: TurnRuns | null
-  vision: VisionRun | null
 }
 
 export type Step = {
@@ -36,7 +35,8 @@ export const BUILDING_STEPS = new Set<StepId>([])
 
 /** The city's yearly pace and the pace the goal needs, as cited text (Howard Center, Code Red, 2019). */
 export const PACE_NEEDED_PER_YEAR = 25_000
-export const VISION_YEARS = 10
+/** Years of planting at the needed pace to reach the canopy goal (the 2037 goal is about a decade away). */
+export const GOAL_YEARS = 10
 
 const holc = (d: AppData, g: 'A' | 'B' | 'C' | 'D') => d.stats.byHolc.find((x) => x.grade === g)
 
@@ -143,26 +143,11 @@ export const STEPS: Step[] = [
     Overlay: TurnCards,
   },
   {
-    id: 'vision',
-    kicker: () => `${VISION_YEARS} years from now`,
-    title: () => 'A cooler Baltimore',
-    body: ({ vision }) => {
-      const pace = `At the pace the goal needs, ${VISION_YEARS} years of planting`
-      if (!vision) return `${pace} could reach every empty site in the city’s inventory.`
-      return vision.result.impact.trees < vision.trees
-        ? `${pace} would fill all ${fmtInt(vision.result.impact.trees)} empty sites in the city’s inventory. The planted blocks cool:`
-        : `${pace} means ${fmtInt(vision.result.impact.trees)} new street trees. The planted blocks cool:`
-    },
-    source: 'Model projection from the city tree inventory; pace from Howard Center (2019)',
-    camera: ({ data }) => fit(siteBounds(data), 52, -25),
-    Overlay: VisionCounter,
-  },
-  {
     id: 'cta',
     kicker: () => 'Your turn',
     title: () => 'You can help',
-    body: () =>
-      'Request a free street tree, join a planting, or share your neighborhood’s numbers. A tree on the hottest blocks does the most good.',
+    body: ({ data }) =>
+      `Reaching ${fmtPct(data.stats.city.canopyGoal)} canopy takes about ${GOAL_YEARS} years of planting at ${fmtInt(PACE_NEEDED_PER_YEAR)} trees a year, and it starts on your block. Request a free street tree, join a planting, or share your neighborhood’s numbers. A tree on the hottest blocks does the most good.`,
     source: 'TreeBaltimore · Baltimore Tree Trust · Blue Water Baltimore · Parks & People',
     camera: ({ data }) => fit(featureBounds(data.city), 45, -10),
     Overlay: CtaButtons,
