@@ -1,5 +1,7 @@
 # A Tree Grows in Baltimore
 
+Link: https://a-tree-grows-in-baltimore-nq9o8.ondigitalocean.app/ 
+
 hackUMBC 2026. Shows where Baltimore is hottest and least shaded, and plans where new street trees would cool the most people for a given budget.
 
 - `web/`: React + Vite frontend (`cd web && npm install && npm run dev`)
@@ -8,4 +10,4 @@ hackUMBC 2026. Shows where Baltimore is hottest and least shaded, and plans wher
 - `deploy/`: droplet setup
 - `CONTRACTS.md`: data formats shared by all parts
 
-`web/public/data/` currently holds **mock data** (`python -m pipeline.mock.make_mock`).
+`web/public/data/` currently holds **mock data** (`python -m pipeline.mock.make_mock`). This has since been replaced with real data.
