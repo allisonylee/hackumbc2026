@@ -31,7 +31,8 @@ It prints the API address, `https://<ip-with-dashes>.sslip.io` by default. sslip
 Check from your laptop: `curl https://<api-host>/api/health` should return `{"model": "qwen3.5:2b", ..., "energy": "estimated"}`.
 
 ## 3. Point the site at it (App Platform)
-- Create the app from the GitHub repo: **Static Site**, source directory `web`, build command `npm run build`, output directory `dist`.
+- Easiest: create the app from the GitHub repo, then go to **Settings → App Spec → Edit** and paste `deploy/app-spec.yaml` (it sets everything below).
+- The component must be a **Static Site**, not a Web Service. A web service fails with "determine start command: when there is no default process a command is required". Source directory `web`, build command `npm run build`, output directory `dist`.
 - Add a **catch-all** route to `index.html` (Settings → the static site component → Custom Pages → Catchall document `index.html`) so `/plan` and `/learn` work on refresh.
 - Add the environment variable **`VITE_API_URL=https://<api-host>`**, scoped to **build time**. Vite bakes it into the JavaScript, so redeploy after setting or changing it.
 

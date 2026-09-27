@@ -1,0 +1,19 @@
+# DigitalOcean App Platform spec for the site (a static site, not a web service).
+# Use: App Platform → your app → Settings → App Spec → Edit, replace everything with this, Save.
+# Set VITE_API_URL to the droplet's API address (printed by setup_droplet.sh), then redeploy.
+name: a-tree-grows-in-baltimore
+region: tor
+static_sites:
+  - name: web
+    github:
+      repo: allisonylee/hackumbc2026
+      branch: main
+      deploy_on_push: true
+    source_dir: web
+    build_command: npm run build
+    output_dir: dist
+    catchall_document: index.html   # so /plan and /learn work on refresh
+    envs:
+      - key: VITE_API_URL
+        value: https://REPLACE-WITH-API-HOST   # e.g. https://1-2-3-4.sslip.io, no trailing slash
+        scope: BUILD_TIME
