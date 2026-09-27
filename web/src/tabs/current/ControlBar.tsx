@@ -14,8 +14,8 @@ import { focusNb, setMode3d } from './ui'
 import { SITES_MIN_ZOOM, TREES_MIN_ZOOM } from './layers'
 
 const COLOR_MODES: { id: ColorBy; label: string }[] = [
-  { id: 'canopy', label: 'Canopy' },
   { id: 'heat', label: 'Heat' },
+  { id: 'canopy', label: 'Canopy' },
   { id: 'income', label: 'Income' },
   { id: 'asthma', label: 'Asthma' },
 ]

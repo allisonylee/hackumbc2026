@@ -108,7 +108,7 @@ export const useStore = create<State>()((set) => ({
   setSelectedSite: (selectedSite) => set({ selectedSite }),
 
   current: {
-    colorBy: 'canopy',
+    colorBy: 'heat',
     heightByHeat: true,
     bivariate: null,
     layers: { holc: false, sites: true, cooling: false, trees: true },
