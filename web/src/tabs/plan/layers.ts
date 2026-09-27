@@ -115,15 +115,21 @@ export function usePlanLayers(active: boolean): TabLayers {
         c = g ? ([...RAMPS.gain(Math.min(1, g / gained!.hi)), 235] as RGBA) : ([...RAMPS.canopy(h.canopy / CANOPY_MAX), 35] as RGBA)
       } else if (result && perHex[h.h3]) {
         const f = hexCoolingF(h, perHex[h.h3])
-        c = [...RAMPS.cooling(0.15 + 0.85 * Math.sqrt(maxCool > 0 ? f / maxCool : 0)), 215] as RGBA
+        c = [...RAMPS.cooling(0.4 + 0.6 * Math.sqrt(maxCool > 0 ? f / maxCool : 0)), 235] as RGBA
       } else {
         const heat = RAMPS.heat((h.heatAnom - lo) / (hi - lo || 1))
-        c = [...heat, result ? 55 : 102] as RGBA // 40% opacity, dimmer once a plan is drawn on top
+        c = [...heat, result ? 35 : 102] as RGBA // 40% opacity, much dimmer once a plan is drawn on top
       }
       colors.set(h.h3, c)
     }
     return colors
   }, [data, heatRange, result, view, gained])
+
+  // Planted blocks get a pixel-width outline so they stay visible at city zoom, where one hex is a few pixels.
+  const plantedHexes = useMemo(
+    () => (data && result && view !== 'canopyNow' ? Object.keys(result.perHex).map((h3) => data.hexById.get(h3)).filter((h): h is Hex => !!h) : []),
+    [data, result, view],
+  )
 
   const excludedFeatures = useMemo(() => {
     if (!data || !excludeNbs.length) return []
@@ -152,6 +158,25 @@ export function usePlanLayers(active: boolean): TabLayers {
         pickable: true,
         autoHighlight: true,
         highlightColor: [255, 255, 255, 40],
+        ...before(beforeId),
+      }),
+      new H3HexagonLayer<Hex>({
+        id: 'hex-plan-planted',
+        data: plantedHexes,
+        getHexagon: (d) => d.h3,
+        extruded: false,
+        filled: true,
+        stroked: true,
+        coverage: 1,
+        getFillColor: (d) => hexColors.get(d.h3) ?? [0, 0, 0, 0],
+        getLineColor: (d) => {
+          const c = hexColors.get(d.h3)
+          return c ? [c[0], c[1], c[2], 255] : [0, 0, 0, 0]
+        },
+        lineWidthUnits: 'pixels',
+        getLineWidth: 2,
+        updateTriggers: { getFillColor: hexColors, getLineColor: hexColors },
+        pickable: false,
         ...before(beforeId),
       }),
       new GeoJsonLayer({
@@ -189,7 +214,7 @@ export function usePlanLayers(active: boolean): TabLayers {
         onClick: onSiteClick,
       }),
     ]
-  }, [active, data, hexColors, excludedFeatures, focusFeature, zoom, beforeId, reduce])
+  }, [active, data, hexColors, plantedHexes, excludedFeatures, focusFeature, zoom, beforeId, reduce])
 
   const siteLayers = useMemo(() => {
     if (!active || !data || !planned) return []
