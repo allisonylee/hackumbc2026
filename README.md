@@ -10,4 +10,4 @@ hackUMBC 2026. Shows where Baltimore is hottest and least shaded, and plans wher
 - `deploy/`: droplet setup
 - `CONTRACTS.md`: data formats shared by all parts
 
-`web/public/data/` currently holds **mock data** (`python -m pipeline.mock.make_mock`). This has since been replaced with real data.
+`web/public/data/` currently holds **mock data** (`python -m pipeline.mock.make_mock`). This was purely to test the frontend and has since been replaced with real data.
