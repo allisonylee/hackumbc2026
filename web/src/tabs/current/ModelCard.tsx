@@ -99,7 +99,7 @@ export function ModelCardDialog() {
             Model card: how we predict heat
             {stats.mock && <span className="ml-2 align-middle text-[11px] font-medium text-amber-200">(mock data)</span>}
           </DialogTitle>
-          <DialogDescription className="text-white/55">Built from stats.json, written by the training pipeline.</DialogDescription>
+          <DialogDescription className="sr-only">How the heat model works, how well it predicts, and its limitations.</DialogDescription>
         </DialogHeader>
         <ModelCardContent stats={stats} />
       </DialogContent>
