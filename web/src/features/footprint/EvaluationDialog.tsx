@@ -178,7 +178,7 @@ function ModelValidation({ stats }: { stats: Stats }) {
       <Section title="Does it predict places it hasn't seen?" icon={<Gauge className="size-4 text-emerald-400" aria-hidden />}>
         <div className="grid gap-3 md:grid-cols-2">
           <R2Bar label="Spatial cross-validation R²" value={m.r2Spatial} color="#4ade80" note="Held-out blocks of the city: the honest number." />
-          <R2Bar label="Linear model, spatial CV R²" value={m.baselines.linearR2Spatial} color="#94a3b8" note="Baseline: straight-line fit on the same features." />
+          <R2Bar label="Linear model, spatial CV R²" value={m.baselines.linearR2Spatial} color="#94a3b8" note="Baseline: straight-line fit on canopy, pavement and nearby water." />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <StatTile label="Error (RMSE)" value={m.rmseSpatial} format={(n) => `${n.toFixed(2)}°F`} hint="spatial CV" accent="#4ade80" />
